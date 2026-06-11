@@ -1,0 +1,79 @@
+import { getDatabase, execQueryAll } from '../db/database';
+import type { TaskRow } from '../../shared/types/database';
+
+let timer: NodeJS.Timeout | null = null;
+
+export function startRecurrenceService(): void {
+  if (timer) return;
+  // Check every 60 seconds
+  timer = setInterval(processRecurringTasks, 60000);
+  processRecurringTasks(); // initial check
+}
+
+export function stopRecurrenceService(): void {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+
+function processRecurringTasks(): void {
+  const db = getDatabase();
+  const now = Date.now();
+
+  // Find recurring tasks whose due_time is in the past
+  const tasks = execQueryAll<TaskRow>(db, `
+    SELECT * FROM tasks
+    WHERE recurrence_type IS NOT NULL
+      AND recurrence_type != ''
+      AND due_time IS NOT NULL
+      AND due_time < ?
+      AND status NOT IN ('cancelled')
+    ORDER BY due_time ASC
+  `, [now]);
+
+  for (const task of tasks) {
+    const nextDue = getNextDueTime(task.due_time!, task.recurrence_type!);
+    if (!nextDue) continue;
+
+    // Update the due_time to next occurrence
+    // If task was done, reset to todo for the next cycle
+    const newStatus = task.status === 'done' ? 'todo' : task.status;
+    const stmt = db.prepare(`
+      UPDATE tasks SET due_time = ?, status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run([nextDue.getTime(), newStatus, now, task.id]);
+    stmt.free();
+  }
+}
+
+function getNextDueTime(currentDue: number, recurrenceType: string): Date | null {
+  const due = new Date(currentDue);
+
+  // Advance until the next due time is in the future
+  const now = new Date();
+  let iterations = 0;
+  const maxIterations = 100; // safety limit
+
+  while (due.getTime() <= now.getTime() && iterations < maxIterations) {
+    switch (recurrenceType) {
+      case 'daily':
+        due.setDate(due.getDate() + 1);
+        break;
+      case 'weekly':
+        due.setDate(due.getDate() + 7);
+        break;
+      case 'monthly':
+        due.setMonth(due.getMonth() + 1);
+        break;
+      case 'yearly':
+        due.setFullYear(due.getFullYear() + 1);
+        break;
+      default:
+        return null;
+    }
+    iterations++;
+  }
+
+  return iterations < maxIterations ? due : null;
+}

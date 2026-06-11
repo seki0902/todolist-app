@@ -1,0 +1,25 @@
+appId: com.focusflow.desktop
+productName: FocusFlow Desktop
+directories:
+  output: release
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - node_modules/sql.js/dist/*.wasm
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: FocusFlow Desktop
+mac:
+  target: default
+linux:
+  target: AppImage

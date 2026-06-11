@@ -1,0 +1,189 @@
+import React, { useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line } from 'recharts';
+import type { TaskRow } from '../../shared/types/database';
+import { useCategoryStore } from '../../store/useCategoryStore';
+
+interface StatsViewProps {
+  tasks: TaskRow[];
+}
+
+const PIE_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#9ca3af'];
+
+export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
+  const { categories } = useCategoryStore();
+
+  const stats = useMemo(() => {
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const done = tasks.filter((t) => t.status === 'done');
+    const todayDone = done.filter((t) => t.updated_at >= todayStart);
+    const weekDone = done.filter((t) => t.updated_at >= weekStart.getTime());
+    const monthDone = done.filter((t) => t.updated_at >= monthStart.getTime());
+
+    const priorityDist = [
+      { name: 'P1', value: tasks.filter((t) => t.priority === 1).length, color: '#ef4444' },
+      { name: 'P2', value: tasks.filter((t) => t.priority === 2).length, color: '#f97316' },
+      { name: 'P3', value: tasks.filter((t) => t.priority === 3).length, color: '#3b82f6' },
+      { name: 'P4', value: tasks.filter((t) => t.priority === 4).length, color: '#9ca3af' },
+    ];
+
+    const statusDist = [
+      { name: '待开始', value: tasks.filter((t) => t.status === 'todo').length, color: '#9ca3af' },
+      { name: '进行中', value: tasks.filter((t) => t.status === 'in_progress').length, color: '#3b82f6' },
+      { name: '暂停', value: tasks.filter((t) => t.status === 'paused').length, color: '#f97316' },
+      { name: '已完成', value: tasks.filter((t) => t.status === 'done').length, color: '#10b981' },
+      { name: '已取消', value: tasks.filter((t) => t.status === 'cancelled').length, color: '#6b7280' },
+    ];
+
+    // Category distribution
+    const categoryDist = categories.map((cat) => ({
+      name: cat.name,
+      value: tasks.filter((t) => t.category_id === cat.id).length,
+    })).filter((c) => c.value > 0);
+
+    // Weekly trend: completions per day for the past 7 days
+    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    const weekTrend = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - d.getDay() + i);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const dayEnd = dayStart + 86400000;
+      const count = done.filter((t) => t.updated_at >= dayStart && t.updated_at < dayEnd).length;
+      return { name: `周${weekDays[i]}`, value: count };
+    });
+
+    const totalPomodoros = tasks.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
+    const donePomodoros = done.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
+
+    return {
+      total: tasks.length,
+      done: done.length,
+      todayDone: todayDone.length,
+      weekDone: weekDone.length,
+      monthDone: monthDone.length,
+      totalPomodoros,
+      donePomodoros,
+      completionRate: tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 0,
+      priorityDist,
+      statusDist,
+      categoryDist,
+      weekTrend,
+    };
+  }, [tasks, categories]);
+
+  return (
+    <div className="p-6 space-y-6">
+      <h2 className="text-lg font-semibold text-foreground">数据统计</h2>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: '今日完成', value: stats.todayDone, color: 'text-emerald-500' },
+          { label: '本周完成', value: stats.weekDone, color: 'text-blue-500' },
+          { label: '本月完成', value: stats.monthDone, color: 'text-purple-500' },
+          { label: '累计完成', value: stats.done, color: 'text-foreground' },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: '任务总数', value: stats.total },
+          { label: '完成率', value: `${stats.completionRate}%` },
+          { label: '累计番茄', value: `${stats.donePomodoros}/${stats.totalPomodoros}` },
+          { label: '专注时长', value: `${stats.donePomodoros * 25}分钟` },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-border bg-card p-4">
+            <div className="text-2xl font-bold text-foreground">{s.value}</div>
+            <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Priority Distribution */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-4">优先级分布</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={stats.priorityDist}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                nameKey="name"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {stats.priorityDist.map((entry, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Status Distribution */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-4">状态分布</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={stats.statusDist}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {stats.statusDist.map((entry, i) => (
+                  <Cell key={i} fill={entry.color || 'hsl(var(--primary))'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Weekly Trend */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-4">本周完成趋势</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={stats.weekTrend}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Category Distribution */}
+        {stats.categoryDist.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground mb-4">分类分布</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={stats.categoryDist} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={50} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
