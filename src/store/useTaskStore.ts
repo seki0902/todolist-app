@@ -15,6 +15,7 @@ interface TaskState {
   handleSync: (event: DBSyncEvent) => void;
   initSync: () => void;
   cleanup: () => void;
+  migrateTasksToToday: (taskIds: string[]) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -127,6 +128,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const { syncUnsubscribe } = get();
     if (syncUnsubscribe) {
       syncUnsubscribe();
+    }
+  },
+
+  migrateTasksToToday: async (taskIds: string[]) => {
+    const today = new Date();
+    today.setHours(23, 59, 0, 0);
+    const todayDue = today.getTime();
+
+    const results = await Promise.allSettled(
+      taskIds.map((id) => window.api.db.updateTask(id, { due_time: todayDue }))
+    );
+
+    // Reload from server to get updated data
+    const response = await window.api.db.listTasks();
+    if (response.success && response.data) {
+      set({ tasks: response.data });
     }
   },
 }));

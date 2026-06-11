@@ -11,12 +11,15 @@ asarUnpack:
   - node_modules/sql.js/dist/*.wasm
 npmRebuild: false
 win:
+  icon: build-resources/icon.ico
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch: [x64]
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
   createDesktopShortcut: true
   shortcutName: FocusFlow Desktop
 mac:

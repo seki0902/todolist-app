@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, ipcMain, app } from 'electron';
+import { BrowserWindow, screen, ipcMain, app, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -50,7 +50,7 @@ export function createStickyWindow(): BrowserWindow {
     maxHeight: 700,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     skipTaskbar: true,
     resizable: true,
     hasShadow: true,
@@ -74,7 +74,45 @@ export function createStickyWindow(): BrowserWindow {
   }
 
   stickyWindow.setVisibleOnAllWorkspaces(true);
-  stickyWindow.setAlwaysOnTop(true, 'floating');
+
+  // Right-click context menu
+  stickyWindow.webContents.on('context-menu', () => {
+    const isPinned = stickyWindow?.isAlwaysOnTop() ?? false;
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '固定在页面上方',
+        type: 'checkbox',
+        checked: isPinned,
+        click: () => {
+          if (stickyWindow && !stickyWindow.isDestroyed()) {
+            const newPinned = !isPinned;
+            stickyWindow.setAlwaysOnTop(newPinned, 'floating');
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: '透明度',
+        submenu: [
+          { label: '20%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.2) },
+          { label: '40%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.4) },
+          { label: '60%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.6) },
+          { label: '80%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.8) },
+          { label: '100%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(1.0) },
+        ],
+      },
+      { type: 'separator' },
+      {
+        label: '关闭便签',
+        click: () => {
+          if (stickyWindow && !stickyWindow.isDestroyed()) {
+            stickyWindow.close();
+          }
+        },
+      },
+    ]);
+    contextMenu.popup();
+  });
 
   // Save position on move/resize
   stickyWindow.on('moved', () => {

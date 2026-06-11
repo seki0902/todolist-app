@@ -31,7 +31,7 @@ export const Dialog: React.FC<DialogProps> = ({
         className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-50 w-full max-w-lg rounded-xl border border-border bg-background p-6 shadow-lg animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-50 w-full max-w-[95vw] sm:max-w-lg rounded-xl border border-border bg-background p-6 shadow-lg animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         {title && (
           <h2 className="text-lg font-semibold text-foreground mb-4">
             {title}

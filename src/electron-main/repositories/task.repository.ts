@@ -17,12 +17,12 @@ export class TaskRepository {
     const stmt = this.db.prepare(`
       INSERT INTO tasks (
         id, title, description, priority, status, progress,
-        start_time, due_time, reminder_time, recurrence_type,
+        start_time, due_time, reminder_time, recurrence_type, recurrence_days,
         category_id, parent_id, sort, estimated_pomodoro, ai_meta,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?
       )
@@ -39,6 +39,7 @@ export class TaskRepository {
       input.due_time ?? null,
       input.reminder_time ?? null,
       input.recurrence_type ?? null,
+      input.recurrence_days ?? null,
       input.category_id ?? null,
       input.parent_id ?? null,
       input.sort ?? 0,
@@ -75,6 +76,7 @@ export class TaskRepository {
       ['due_time', 'due_time'],
       ['reminder_time', 'reminder_time'],
       ['recurrence_type', 'recurrence_type'],
+      ['recurrence_days', 'recurrence_days'],
       ['category_id', 'category_id'],
       ['parent_id', 'parent_id'],
       ['sort', 'sort'],

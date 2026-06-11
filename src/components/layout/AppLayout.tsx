@@ -11,24 +11,32 @@ import {
 } from '@dnd-kit/core';
 import { TitleBar } from './TitleBar';
 import { ManageDialog } from '../tasks/ManageDialog';
+import { DailyMigrationDialog } from '../tasks/DailyMigrationDialog';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
+import { useTagStore } from '../../store/useTagStore';
 import { useTheme } from '../../hooks/useTheme';
 import { CategorySidebar } from '../sidebar/CategorySidebar';
 import { TaskList } from '../tasks/TaskList';
-import { PomodoroTimer } from '../tasks/PomodoroTimer';
-import { CalendarView } from '../tasks/CalendarView';
+import { PomodoroWorkbench } from '../tasks/PomodoroWorkbench';
+import { PomodoroFloating } from '../tasks/PomodoroFloating';
+import { usePomodoroStore } from '../../store/usePomodoroStore';
 import { StatsView } from '../tasks/StatsView';
+import { FocusCardSkeleton, StatCardSkeleton } from '../ui/Skeleton';
+import type { TaskRow } from '../../shared/types/database';
 
-type View = 'focus' | 'tasks' | 'calendar' | 'stats';
+type View = 'focus' | 'tasks' | 'stats';
 
 export const AppLayout: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>('focus');
   const [manageOpen, setManageOpen] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const { loadTasks, tasks, updateTask, initSync: initTaskSync } = useTaskStore();
+  const [migrationOpen, setMigrationOpen] = useState(false);
+  const [yesterdayTasks, setYesterdayTasks] = useState<TaskRow[]>([]);
+  const { loadTasks, tasks, updateTask, initSync: initTaskSync, migrateTasksToToday } = useTaskStore();
   const { loadCategories, initSync: initCategorySync } = useCategoryStore();
+  const { initSync: initTagSync } = useTagStore();
   const { theme, setTheme } = useTheme();
 
   const sensors = useSensors(
@@ -76,6 +84,40 @@ export const AppLayout: React.FC = () => {
     loadCategories();
     initTaskSync();
     initCategorySync();
+    initTagSync();
+
+    // Cross-day migration check
+    const today = new Date().toDateString();
+    const lastActiveDate = localStorage.getItem('focusflow-last-active-date');
+    if (lastActiveDate && lastActiveDate !== today) {
+      // Check for yesterday's unfinished tasks
+      const yesterdayStart = new Date();
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      yesterdayStart.setHours(0, 0, 0, 0);
+      const yesterdayEnd = new Date(yesterdayStart);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+
+      // Need to check after tasks are loaded, so we use a delayed check
+      setTimeout(() => {
+        const state = useTaskStore.getState();
+        const unfinished = state.tasks.filter(
+          (t) =>
+            t.status !== 'done' &&
+            t.status !== 'cancelled' &&
+            t.due_time &&
+            t.due_time >= yesterdayStart.getTime() &&
+            t.due_time <= yesterdayEnd.getTime()
+        );
+        if (unfinished.length > 0) {
+          setYesterdayTasks(unfinished);
+          setMigrationOpen(true);
+        } else {
+          localStorage.setItem('focusflow-last-active-date', today);
+        }
+      }, 500);
+    } else if (!lastActiveDate) {
+      localStorage.setItem('focusflow-last-active-date', today);
+    }
   }, []);
 
   const cycleTheme = () => {
@@ -128,17 +170,6 @@ export const AppLayout: React.FC = () => {
                 全部任务
               </button>
               <button
-                onClick={() => setCurrentView('calendar')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  currentView === 'calendar'
-                    ? 'bg-accent text-accent-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                }`}
-              >
-                <span className="text-base">📅</span>
-                日历
-              </button>
-              <button
                 onClick={() => setCurrentView('stats')}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                   currentView === 'stats'
@@ -148,6 +179,13 @@ export const AppLayout: React.FC = () => {
               >
                 <span className="text-base">📊</span>
                 统计
+              </button>
+              <button
+                onClick={() => usePomodoroStore.getState().open()}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              >
+                <span className="text-base">🍅</span>
+                番茄钟
               </button>
             </div>
 
@@ -184,8 +222,6 @@ export const AppLayout: React.FC = () => {
         <main className="flex-1 flex flex-col overflow-hidden bg-background/30">
           {currentView === 'focus' ? (
             <FocusView />
-          ) : currentView === 'calendar' ? (
-            <CalendarView tasks={tasks} />
           ) : currentView === 'stats' ? (
             <StatsView tasks={tasks} />
           ) : (
@@ -197,6 +233,21 @@ export const AppLayout: React.FC = () => {
         </main>
 
         <ManageDialog open={manageOpen} onClose={() => setManageOpen(false)} />
+        <PomodoroWorkbench />
+        <PomodoroFloating />
+        <DailyMigrationDialog
+          open={migrationOpen}
+          yesterdayTasks={yesterdayTasks}
+          onSkip={() => {
+            setMigrationOpen(false);
+            localStorage.setItem('focusflow-last-active-date', new Date().toDateString());
+          }}
+          onMigrate={async (taskIds) => {
+            setMigrationOpen(false);
+            await migrateTasksToToday(taskIds);
+            localStorage.setItem('focusflow-last-active-date', new Date().toDateString());
+          }}
+        />
         </div>
       </div>
     </DndContext>
@@ -206,8 +257,6 @@ export const AppLayout: React.FC = () => {
 // Inline FocusView with glassmorphism + skeleton + parallax
 const FocusView: React.FC = () => {
   const { tasks, loading } = useTaskStore();
-  const [pomodoroOpen, setPomodoroOpen] = useState(false);
-  const [pomodoroTask, setPomodoroTask] = useState<string | undefined>();
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
@@ -230,7 +279,9 @@ const FocusView: React.FC = () => {
   const inProgressTasks = tasks.filter((t) => t.status === 'in_progress');
   const urgentTasks = tasks.filter((t) => t.priority === 1 && t.status !== 'done' && t.status !== 'cancelled');
   const nextUpTasks = tasks.filter((t) => t.status === 'todo' && t.priority <= 2).slice(0, 5);
-  const focusTask = inProgressTasks[0] || urgentTasks[0] || todayTasks[0] || nextUpTasks[0];
+  // Today-first priority: today urgent → today any → urgent → in_progress
+  const todayUrgent = todayTasks.filter(t => t.priority === 1);
+  const focusTask = todayUrgent[0] || todayTasks[0] || urgentTasks[0] || inProgressTasks[0];
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -329,7 +380,11 @@ const FocusView: React.FC = () => {
             </div>
           )}
           <button
-            onClick={() => { setPomodoroTask(focusTask?.title); setPomodoroOpen(true); }}
+            onClick={() => {
+              const store = usePomodoroStore.getState();
+              store.selectTask(focusTask.id, focusTask.title);
+              store.open();
+            }}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all duration-200 btn-lift shadow-lg shadow-primary/20"
             style={{ animation: 'pulse-glow 2s infinite' }}
           >
@@ -403,11 +458,6 @@ const FocusView: React.FC = () => {
         </div>
       )}
 
-      <PomodoroTimer
-        open={pomodoroOpen}
-        onClose={() => setPomodoroOpen(false)}
-        taskTitle={pomodoroTask}
-      />
     </div>
   );
 };

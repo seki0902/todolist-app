@@ -41,7 +41,14 @@ export function execQueryOne<T = any>(dbInstance: Database, sql: string, params?
 export async function initDatabase(): Promise<Database> {
   if (db) return db;
 
-  const SQL = await initSqlJs();
+  const SQL = await initSqlJs({
+    locateFile: (file: string) => {
+      // sql.js internally uses __dirname which produces mixed slashes on Windows.
+      // path.join() produces clean platform-native paths that the asar-patched fs
+      // can correctly resolve to files inside the asar archive.
+      return path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', file);
+    },
+  });
   const dbPath = path.join(app.getPath('userData'), 'focusflow.db');
 
   if (fs.existsSync(dbPath)) {

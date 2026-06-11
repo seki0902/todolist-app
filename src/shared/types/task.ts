@@ -53,6 +53,7 @@ export interface TaskRow {
   due_time: number | null;
   reminder_time: number | null;
   recurrence_type: string | null;
+  recurrence_days: string | null;
   category_id: string | null;
   parent_id: string | null;
   sort: number;
@@ -73,6 +74,7 @@ export interface CreateTaskInput {
   due_time?: number | null;
   reminder_time?: number | null;
   recurrence_type?: string | null;
+  recurrence_days?: string | null;
   category_id?: string | null;
   parent_id?: string | null;
   sort?: number;
@@ -90,6 +92,7 @@ export interface UpdateTaskInput {
   due_time?: number | null;
   reminder_time?: number | null;
   recurrence_type?: string | null;
+  recurrence_days?: string | null;
   category_id?: string | null;
   parent_id?: string | null;
   sort?: number;

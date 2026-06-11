@@ -20,7 +20,26 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, o
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [sessions, setSessions] = useState(0);
+  const [sessions, setSessions] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('focusflow-pomodoro-sessions');
+        const all: Record<string, number> = stored ? JSON.parse(stored) : {};
+        return taskTitle ? (all[taskTitle] || 0) : 0;
+      } catch { return 0; }
+    }
+    return 0;
+  });
+  const [totalSessions, setTotalSessions] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('focusflow-pomodoro-sessions');
+        const all: Record<string, number> = stored ? JSON.parse(stored) : {};
+        return Object.values(all).reduce((a, b) => a + b, 0);
+      } catch { return 0; }
+    }
+    return 0;
+  });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const totalSeconds = duration * 60;
@@ -28,13 +47,29 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, o
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
+  const persistSession = () => {
+    const key = taskTitle || '__untitled__';
+    try {
+      const stored = localStorage.getItem('focusflow-pomodoro-sessions');
+      const all: Record<string, number> = stored ? JSON.parse(stored) : {};
+      all[key] = (all[key] || 0) + 1;
+      localStorage.setItem('focusflow-pomodoro-sessions', JSON.stringify(all));
+      setSessions(all[key]);
+      setTotalSessions(Object.values(all).reduce((a, b) => a + b, 0));
+    } catch {}
+    // System notification
+    try {
+      (window as any).api?.notify?.pomodoroComplete?.(taskTitle);
+    } catch {}
+  };
+
   const tick = useCallback(() => {
     setTimeLeft((prev) => {
       if (prev <= 1) {
         clearInterval(intervalRef.current!);
         setIsRunning(false);
-        setSessions((s) => s + 1);
-        // Notification sound / visual
+        persistSession();
+        // Notification sound
         if (typeof window !== 'undefined') {
           new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+AgH9/f3+Af4CAgICAgICAgH9/f39/f39/f39/f4CAgICAgICAgH+AgH9/f39/f4B/f3+Af39/f39/gICAgICAgIB/f39/f39/gH9/f3+AgICAgICAgICAf39/f39/gH9/gICAgICAgICAgIB/f39/f4B/f3+AgICAgICAgICAf39/f39/f39/f39/f4B/f3+Af39/f39/f39/f39/f39/gH+Af4CAf39/f39/f39/f39/f4B/f3+Af4CAgICAgICAgICAf3+Af39/f39/f39/f4CAgICAgICAgIB/f3+Af39/f4B/gICAgICAgICAf39/f3+Af39/f39/gH+AgICAgICAgH9/f39/f39/gH9/f39/f39/f39/f3+AgICAf39/f3+Af39/f39/f3+Af4B/f39/f39/f3+AgICAf39/f39/gICAgICAgH9/gICAgICAgH+Af39/f39/f3+Af39/f39/f39/f39/f39/f39/f3+AgICAf39/f39/f39/f39/gICAgICAgH9/f3+AgICAgICAgICAf39/f3+AgICAgICAgICAf3+AgICAgICAgH9/f3+Af39/f39/f39/f39/f3+Af39/f39/f3+Af4B/f3+AgICAgICAgH9/f3+AgICAf39/f3+AgICAf39/f39/f4B/f39/f39/gICAgICAgH+Af39/gICAgICAgICAf3+AgICAf3+Af4B/f3+Af39/f39/f3+AgICAgICAgICAf3+Af39/f39/f3+Af4B/f39/f3+Af3+AgICAf39/f3+Af4B/gICAgICAgICA').play().catch(() => {});
         }
@@ -42,7 +77,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, o
       }
       return prev - 1;
     });
-  }, []);
+  }, [taskTitle]);
 
   const start = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -126,7 +161,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, o
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </span>
               <span className="text-xs text-muted-foreground mt-1">
-                已完成 {sessions} 个番茄
+                本任务 {sessions} 次 · 总计 {totalSessions} 个番茄
               </span>
             </div>
           </div>

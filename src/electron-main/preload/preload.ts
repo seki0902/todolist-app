@@ -102,11 +102,23 @@ const backupApi = {
     ipcRenderer.invoke('db:restore'),
 };
 
+const notifyApi = {
+  pomodoroComplete: (taskTitle: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('notify:pomodoro', taskTitle),
+};
+
 const winApi = {
   minimize: (): Promise<void> => ipcRenderer.invoke('win:minimize'),
   maximize: (): Promise<void> => ipcRenderer.invoke('win:maximize'),
   close: (): Promise<void> => ipcRenderer.invoke('win:close'),
   isMaximized: (): Promise<boolean> => ipcRenderer.invoke('win:isMaximized'),
+  onMaximizeChange: (callback: (isMaximized: boolean) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, isMaximized: boolean) => {
+      callback(isMaximized);
+    };
+    ipcRenderer.on('win:maximizeChange', handler);
+    return () => ipcRenderer.removeListener('win:maximizeChange', handler);
+  },
 };
 
 export interface FocusFlowAPI {
@@ -116,6 +128,7 @@ export interface FocusFlowAPI {
   sticky: typeof stickyApi;
   backup: typeof backupApi;
   win: typeof winApi;
+  notify: typeof notifyApi;
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -125,4 +138,5 @@ contextBridge.exposeInMainWorld('api', {
   sticky: stickyApi,
   backup: backupApi,
   win: winApi,
+  notify: notifyApi,
 } as FocusFlowAPI);

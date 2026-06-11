@@ -102,6 +102,37 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 2,
+    up(db: Database) {
+      // Fix category names: English → Chinese
+      // Note: applyMigration already wraps this in a transaction, so we don't
+      // need our own BEGIN/COMMIT here.
+      const categoryMappings: [string, string][] = [
+        ['Work', '工作'],
+        ['work', '工作'],
+        ['Study', '学习'],
+        ['study', '学习'],
+        ['Life', '生活'],
+        ['life', '生活'],
+        ['Project', '项目'],
+        ['project', '项目'],
+      ];
+      const updateStmt = db.prepare('UPDATE categories SET name = ? WHERE name = ?');
+      for (const [from, to] of categoryMappings) {
+        updateStmt.run([to, from]);
+      }
+      updateStmt.free();
+    },
+  },
+  {
+    version: 3,
+    up(db: Database) {
+      db.exec(`
+        ALTER TABLE tasks ADD COLUMN recurrence_days TEXT;
+      `);
+    },
+  },
 ];
 
 export function getAppliedMigrations(db: Database): number[] {

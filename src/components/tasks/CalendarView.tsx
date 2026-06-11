@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import type { TaskRow } from '../../shared/types/database';
 
 interface CalendarViewProps {
@@ -27,16 +28,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
       <h2 className="text-lg font-semibold text-foreground mb-4">日历视图</h2>
       <div className="rounded-xl border border-border bg-card p-4">
         <FullCalendar
-          plugins={[dayGridPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin]}
           initialView="dayGridMonth"
-          height="auto"
-          events={events}
-          locale="zh-cn"
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridDay,dayGridWeek,dayGridMonth',
+            right: 'timeGridDay,timeGridWeek,dayGridMonth',
           }}
+          views={{
+            timeGridDay: { titleFormat: { year: 'numeric', month: 'long', day: 'numeric' } },
+            timeGridWeek: { titleFormat: { year: 'numeric', month: 'long', day: 'numeric' } },
+          }}
+          height="auto"
+          events={events}
+          locale="zh-cn"
           buttonText={{
             today: '今天',
             day: '日',

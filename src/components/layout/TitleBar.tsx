@@ -6,7 +6,8 @@ export const TitleBar: React.FC = () => {
 
   useEffect(() => {
     (window as any).api?.win?.isMaximized?.().then((v: boolean) => setIsMaximized(v));
-    const cleanup = (window as any).api?.app?.onMaximizeChange?.((max: boolean) => setIsMaximized(max));
+    const cleanup = (window as any).api?.win?.onMaximizeChange?.((max: boolean) => setIsMaximized(max));
+    return () => cleanup?.();
   }, []);
 
   const api = (window as any).api;

@@ -13,6 +13,7 @@ interface TaskFormProps {
   onSave: (input: CreateTaskInput | { id: string; input: UpdateTaskInput }) => void;
   task?: TaskRow | null;
   categories: CategoryRow[];
+  defaultCategoryId?: string;
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({
@@ -21,6 +22,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   onSave,
   task,
   categories,
+  defaultCategoryId,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -29,7 +31,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const [categoryId, setCategoryId] = useState('');
   const [dueTime, setDueTime] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('');
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [pomodoro, setPomodoro] = useState(0);
+  const [reminderOffset, setReminderOffset] = useState(0); // minutes before due_time
 
   const isEdit = !!task;
 
@@ -43,16 +47,29 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         setCategoryId(task.category_id ?? '');
         setDueTime(task.due_time ? toDatetimeLocal(task.due_time) : '');
         setRecurrenceType(task.recurrence_type ?? '');
+        try {
+          setRecurrenceDays(task.recurrence_days ? JSON.parse(task.recurrence_days) : []);
+        } catch { setRecurrenceDays([]); }
         setPomodoro(task.estimated_pomodoro);
+        // Reverse-compute reminder offset from stored reminder_time
+        if (task.reminder_time && task.due_time) {
+          const diffMin = Math.round((task.due_time - task.reminder_time) / 60000);
+          const presets = [5, 15, 30, 60];
+          setReminderOffset(presets.includes(diffMin) ? diffMin : 0);
+        } else {
+          setReminderOffset(0);
+        }
       } else {
         setTitle('');
         setDescription('');
         setPriority(Priority.P3);
         setStatus(TaskStatus.TODO);
-        setCategoryId('');
+        setCategoryId(defaultCategoryId ?? '');
         setDueTime('');
         setRecurrenceType('');
-        setPomodoro(1);
+        setRecurrenceDays([]);
+        setPomodoro(0);
+        setReminderOffset(0);
       }
     }
   }, [open, task]);
@@ -61,14 +78,19 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
+    const dueTimeValue = dueTime ? new Date(dueTime).getTime() : null;
+    const reminderTimeValue = (reminderOffset > 0 && dueTimeValue) ? dueTimeValue - reminderOffset * 60 * 1000 : null;
+
     const baseInput = {
       title: title.trim(),
       description: description.trim(),
       priority,
       status,
       category_id: categoryId || null,
-      due_time: dueTime ? new Date(dueTime).getTime() : null,
+      due_time: dueTimeValue,
+      reminder_time: reminderTimeValue,
       recurrence_type: recurrenceType || null,
+      recurrence_days: recurrenceDays.length > 0 ? JSON.stringify(recurrenceDays) : null,
       estimated_pomodoro: pomodoro,
     };
 
@@ -100,7 +122,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Select
             label="优先级"
             value={String(priority)}
@@ -133,37 +155,84 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             ...categories.map((c) => ({ value: c.id, label: c.name })),
           ]}
         />
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="截止日期"
-            type="datetime-local"
-            value={dueTime}
-            onChange={(e) => setDueTime(e.target.value)}
-          />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
-              🍅 番茄钟（可选）
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={20}
-              value={pomodoro}
-              onChange={(e) => setPomodoro(Math.max(1, Number(e.target.value)))}
-              className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
+        <Input
+          label="截止日期"
+          type="datetime-local"
+          value={dueTime}
+          onChange={(e) => setDueTime(e.target.value)}
+        />
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-foreground">🔁 重复</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setRecurrenceType('')}
+              className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+                recurrenceType === '' || !recurrenceType
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              不重复
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecurrenceType('weekly')}
+              className={`rounded-lg px-4 py-2 text-xs font-medium transition-colors ${
+                recurrenceType === 'weekly'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              每周
+            </button>
           </div>
+          {recurrenceType === 'weekly' && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {[
+                { day: 1, label: '周一' },
+                { day: 2, label: '周二' },
+                { day: 3, label: '周三' },
+                { day: 4, label: '周四' },
+                { day: 5, label: '周五' },
+                { day: 6, label: '周六' },
+                { day: 0, label: '周日' },
+              ].map(({ day, label }) => {
+                const active = recurrenceDays.includes(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => {
+                      setRecurrenceDays((prev) =>
+                        prev.includes(day)
+                          ? prev.filter((d) => d !== day)
+                          : [...prev, day]
+                      );
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         <Select
-          label="🔁 重复"
-          value={recurrenceType}
-          onChange={setRecurrenceType}
+          label="⏰ 提醒"
+          value={String(reminderOffset)}
+          onChange={(v) => setReminderOffset(Number(v))}
           options={[
-            { value: '', label: '不重复' },
-            { value: 'daily', label: '每天' },
-            { value: 'weekly', label: '每周' },
-            { value: 'monthly', label: '每月' },
-            { value: 'yearly', label: '每年' },
+            { value: '0', label: '不提醒' },
+            { value: '5', label: '5分钟前' },
+            { value: '15', label: '15分钟前' },
+            { value: '30', label: '30分钟前' },
+            { value: '60', label: '1小时前' },
           ]}
         />
         {isEdit && task && (

@@ -73,6 +73,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const isInProgress = task.status === TaskStatus.IN_PROGRESS;
 
   const handleStatusClick = () => {
+    // Smart cycle: cancelled/paused → todo, otherwise todo → in_progress → done → todo
+    if (task.status === TaskStatus.CANCELLED || task.status === TaskStatus.PAUSED) {
+      onStatusChange(task, TaskStatus.TODO);
+      return;
+    }
     const cycle: TaskStatus[] = [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE];
     const idx = cycle.indexOf(task.status);
     if (idx >= 0) {
@@ -205,9 +210,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               day: 'numeric',
             })}
           </span>
-        )}
-        {task.estimated_pomodoro > 0 && (
-          <span className="whitespace-nowrap">🍅 {task.estimated_pomodoro}</span>
         )}
       </div>
 

@@ -33,7 +33,7 @@ function processRecurringTasks(): void {
   `, [now]);
 
   for (const task of tasks) {
-    const nextDue = getNextDueTime(task.due_time!, task.recurrence_type!);
+    const nextDue = getNextDueTime(task.due_time!, task.recurrence_type!, task.recurrence_days);
     if (!nextDue) continue;
 
     // Update the due_time to next occurrence
@@ -47,13 +47,42 @@ function processRecurringTasks(): void {
   }
 }
 
-function getNextDueTime(currentDue: number, recurrenceType: string): Date | null {
+function getNextDueTime(currentDue: number, recurrenceType: string, recurrenceDays?: string | null): Date | null {
   const due = new Date(currentDue);
 
-  // Advance until the next due time is in the future
+  // Handle weekly_days mode
+  if (recurrenceType === 'weekly' && recurrenceDays) {
+    try {
+      const days: number[] = JSON.parse(recurrenceDays);
+      if (days.length === 0) return null;
+
+      const now = new Date();
+      let iterations = 0;
+      const maxIterations = 100;
+
+      while (due.getTime() <= now.getTime() && iterations < maxIterations) {
+        // Find the next matching day of week
+        let found = false;
+        for (let add = 1; add <= 7; add++) {
+          due.setDate(due.getDate() + 1);
+          if (days.includes(due.getDay())) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) return null;
+        iterations++;
+      }
+      return iterations < maxIterations ? due : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Standard recurrence types
   const now = new Date();
   let iterations = 0;
-  const maxIterations = 100; // safety limit
+  const maxIterations = 100;
 
   while (due.getTime() <= now.getTime() && iterations < maxIterations) {
     switch (recurrenceType) {

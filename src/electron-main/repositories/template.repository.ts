@@ -126,12 +126,12 @@ export class TemplateRepository {
     const insertTask = this.db.prepare(`
       INSERT INTO tasks (
         id, title, description, priority, status, progress,
-        start_time, due_time, reminder_time, recurrence_type,
+        start_time, due_time, reminder_time, recurrence_type, recurrence_days,
         category_id, parent_id, sort, estimated_pomodoro, ai_meta,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?
       )
@@ -155,6 +155,7 @@ export class TemplateRepository {
         null,
         null,
         null,
+        null,
         0,
         0,
         null,
@@ -171,6 +172,7 @@ export class TemplateRepository {
           step.default_priority,
           'todo',
           0,
+          null,
           null,
           null,
           null,

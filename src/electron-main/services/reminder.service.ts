@@ -31,10 +31,11 @@ function checkReminders(): void {
   const tasks: TaskRow[] = [];
   for (const windowEnd of windows) {
     const rows = execQueryAll<TaskRow>(db, `
-      SELECT * FROM tasks 
+      SELECT * FROM tasks
       WHERE status NOT IN ('done', 'cancelled')
-        AND due_time IS NOT NULL 
-        AND due_time > ? 
+        AND due_time IS NOT NULL
+        AND reminder_time IS NOT NULL
+        AND due_time > ?
         AND due_time <= ?
       ORDER BY due_time ASC
     `, [now, windowEnd]);
