@@ -169,13 +169,20 @@ export class TaskRepository {
       const term = `%${filter.search}%`;
       params.push(term, term);
     }
+    if (filter?.due_date) {
+      const dayStart = new Date(filter.due_date + 'T00:00:00').getTime();
+      const dayEnd = new Date(filter.due_date + 'T23:59:59.999').getTime();
+      sql += ' AND t.due_time >= ? AND t.due_time <= ?';
+      params.push(dayStart, dayEnd);
+    }
 
     sql += ' ORDER BY t.sort ASC, t.created_at DESC';
 
     return execQueryAll<TaskRow>(this.db, sql, params);
   }
 
-  // Recalculate parent task progress as average of all child tasks
+  // Recalculate parent task progress as average of all child tasks.
+  // Also auto-complete parent when all children are done/cancelled.
   recalcParentProgress(parentId: string): void {
     const children = execQueryAll<TaskRow>(
       this.db,
@@ -189,12 +196,23 @@ export class TaskRepository {
       children.reduce((sum, c) => sum + (c.progress || 0), 0) / children.length
     );
 
+    // Check if all children are done or cancelled → auto-complete parent
+    const allDone = children.every((c) => c.status === 'done' || c.status === 'cancelled');
+
     const now = Date.now();
-    const stmt = this.db.prepare(
-      'UPDATE tasks SET progress = ?, updated_at = ? WHERE id = ?'
-    );
-    stmt.run([avgProgress, now, parentId]);
-    stmt.free();
+    if (allDone) {
+      const stmt = this.db.prepare(
+        'UPDATE tasks SET progress = 100, status = ?, updated_at = ? WHERE id = ?'
+      );
+      stmt.run(['done', now, parentId]);
+      stmt.free();
+    } else {
+      const stmt = this.db.prepare(
+        'UPDATE tasks SET progress = ?, updated_at = ? WHERE id = ?'
+      );
+      stmt.run([avgProgress, now, parentId]);
+      stmt.free();
+    }
 
     // Recurse up if this parent is also a child of another task
     const parent = this.getById(parentId);

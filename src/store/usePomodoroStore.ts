@@ -137,6 +137,17 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
         (window as any).api?.notify?.pomodoroComplete?.(selectedTaskTitle);
       } catch {}
 
+      // Persist pomodoro count to task ai_meta for cross-device sync
+      if (selectedTaskId) {
+        try {
+          const allRecords = loadHistory().filter((r) => r.taskId === selectedTaskId);
+          const sessionCount = allRecords.length + 1; // +1 for the one just completed
+          (window as any).api?.db?.updateTask?.(selectedTaskId, {
+            ai_meta: JSON.stringify({ pomodoro_sessions: sessionCount, last_session_at: Date.now() }),
+          });
+        } catch {}
+      }
+
       // Sound
       if (typeof window !== 'undefined') {
         new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+AgH9/f3+Af4CAgICAgICAgH9/f39/f39/f39/f4CAgICAgICAgH+AgH9/f39/f4B/f3+Af39/f39/gICAgICAgIB/f39/f39/gH9/f3+AgICAgICAgICAf39/f39/gH9/gICAgICAgICAgIB/f39/f4B/f3+AgICAgICAgICAf39/f39/f39/f39/f4B/f3+Af39/f39/f39/f39/f39/gH+Af4CAf39/f39/f39/f39/f4B/f3+Af4CAgICAgICAgICAf3+Af39/f39/f39/f4CAgICAgICAgIB/f3+Af39/f4B/gICAgICAgICAf39/f3+Af39/f39/gH+AgICAgICAgH9/f39/f39/gH9/f39/f39/f39/f3+AgICAf39/f3+Af39/f39/f3+Af4B/f39/f39/f3+AgICAf39/f39/gICAgICAgH9/gICAgICAgH+Af39/f39/f3+Af39/f39/f39/f39/f39/f39/f3+AgICAf39/f39/f39/f39/gICAgICAgH9/f3+AgICAgICAgICAf39/f3+AgICAgICAgICAf3+AgICAgICAgH9/f3+Af39/f39/f39/f39/f3+Af39/f39/f3+Af4B/f3+AgICAgICAgH9/f3+AgICAf39/f3+AgICAf39/f39/f4B/f39/f39/gICAgICAgH+Af39/gICAgICAgICAf3+AgICAf3+Af4B/f3+Af39/f39/f3+AgICAgICAgICAf3+Af39/f39/f3+Af4B/f39/f3+Af3+AgICAf39/f3+Af4B/gICAgICAgICA').play().catch(() => {});

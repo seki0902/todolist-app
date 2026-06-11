@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Clock, Edit2, Trash2, Copy, Play, Pause, Check } from 'lucide-react';
+import { GripVertical, Clock, Edit2, Trash2, Copy, Play, Pause, Check, RotateCcw } from 'lucide-react';
 import type { TaskRow, TagRow } from '../../shared/types/database';
 import { Priority, PRIORITY_LABELS, TaskStatus, TASK_STATUS_LABELS } from '../../shared/types/database';
 import { Badge } from '../ui/Badge';
+import { useTagStore } from '../../store/useTagStore';
 
 interface TaskItemProps {
   task: TaskRow;
@@ -13,6 +14,7 @@ interface TaskItemProps {
   isNextStep?: boolean;
   onEdit: (task: TaskRow) => void;
   onDelete: (id: string) => void;
+  onRestore?: (id: string) => void;
   onCopy: (task: TaskRow) => void;
   onStatusChange: (task: TaskRow, newStatus: TaskStatus, progress?: number) => void;
 }
@@ -39,19 +41,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   isNextStep = false,
   onEdit,
   onDelete,
+  onRestore,
   onCopy,
   onStatusChange,
 }) => {
-  const [tags, setTags] = useState<TagRow[]>([]);
-
-  useEffect(() => {
-    const api = (window as any).api;
-    if (api?.tag?.getForTask) {
-      api.tag.getForTask(task.id).then((res: any) => {
-        if (res.success && res.data) setTags(res.data);
-      });
-    }
-  }, [task.id]);
+  const tags = useTagStore((s) => s.taskTags[task.id] ?? []);
 
   const {
     attributes,
@@ -215,45 +209,59 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-        <button
-          onClick={() => onStatusChange(task, TaskStatus.IN_PROGRESS)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
-          title="开始"
-        >
-          <Play className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => onStatusChange(task, TaskStatus.PAUSED)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950"
-          title="暂停"
-        >
-          <Pause className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => onStatusChange(task, TaskStatus.DONE)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950"
-          title="完成"
-        >
-          <Check className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => onCopy(task)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="复制"
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => onEdit(task)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="编辑"
-        >
-          <Edit2 className="h-3.5 w-3.5" />
-        </button>
+        {isCancelled ? (
+          onRestore ? (
+            <button
+              onClick={() => onRestore(task.id)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950"
+              title="恢复"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          ) : null
+        ) : (
+          <>
+            <button
+              onClick={() => onStatusChange(task, TaskStatus.IN_PROGRESS)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950"
+              title="开始"
+            >
+              <Play className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onStatusChange(task, TaskStatus.PAUSED)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950"
+              title="暂停"
+            >
+              <Pause className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onStatusChange(task, TaskStatus.DONE)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950"
+              title="完成"
+            >
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onCopy(task)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="复制"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onEdit(task)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="编辑"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
         <button
           onClick={() => onDelete(task.id)}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          title="删除"
+          title={isCancelled ? '永久删除' : '归档'}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

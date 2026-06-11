@@ -119,9 +119,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   initSync: () => {
-    window.api.app.onSync((event) => {
+    const unsubscribe = window.api.app.onSync((event) => {
       get().handleSync(event);
     });
+    set({ syncUnsubscribe: unsubscribe });
   },
 
   cleanup: () => {

@@ -6,9 +6,11 @@ import type { TaskRow } from '../../shared/types/database';
 
 interface CalendarViewProps {
   tasks: TaskRow[];
+  onDateClick?: (date: Date) => void;
+  onEventClick?: (taskId: string) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onDateClick, onEventClick }) => {
   const events = useMemo(() => {
     return tasks
       .filter((t) => t.due_time)
@@ -48,6 +50,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks }) => {
             week: '周',
             month: '月',
           }}
+          dateClick={(info) => onDateClick?.(info.date)}
+          eventClick={(info) => onEventClick?.(info.event.id)}
           eventContent={(arg) => (
             <div className="text-xs truncate px-1 py-0.5">
               {arg.event.title}

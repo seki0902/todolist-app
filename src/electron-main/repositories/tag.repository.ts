@@ -39,6 +39,23 @@ export class TagRepository {
     `, [taskId]);
   }
 
+  getForTasks(taskIds: string[]): Record<string, TagRow[]> {
+    if (taskIds.length === 0) return {};
+    const placeholders = taskIds.map(() => '?').join(', ');
+    const rows = execQueryAll<TagRow & { task_id: string }>(this.db, `
+      SELECT t.*, tt.task_id FROM tags t
+      INNER JOIN task_tags tt ON tt.tag_id = t.id
+      WHERE tt.task_id IN (${placeholders})
+      ORDER BY t.name ASC
+    `, taskIds);
+    const result: Record<string, TagRow[]> = {};
+    for (const row of rows) {
+      if (!result[row.task_id]) result[row.task_id] = [];
+      result[row.task_id].push({ id: row.id, name: row.name });
+    }
+    return result;
+  }
+
   setTaskTags(taskId: string, tagIds: string[]): void {
     this.db.exec('BEGIN');
     try {

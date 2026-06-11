@@ -31,6 +31,15 @@ export function registerTagIpcHandlers(repo: TagRepository): void {
     }
   });
 
+  ipcMain.handle('db:tag:getForTasks', async (_e, taskIds: string[]): Promise<IPCResponse<Record<string, TagRow[]>>> => {
+    try {
+      const result = repo.getForTasks(taskIds);
+      return { success: true, data: result };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  });
+
   ipcMain.handle('db:tag:getForTask', async (_e, taskId: string): Promise<IPCResponse<TagRow[]>> => {
     try {
       const tags = repo.getForTask(taskId);

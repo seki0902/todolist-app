@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Moon, Sun, Monitor, Settings } from 'lucide-react';
+import { Moon, Sun, Monitor, Settings, Calendar } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -12,6 +12,7 @@ import {
 import { TitleBar } from './TitleBar';
 import { ManageDialog } from '../tasks/ManageDialog';
 import { DailyMigrationDialog } from '../tasks/DailyMigrationDialog';
+import { TaskForm } from '../tasks/TaskForm';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTagStore } from '../../store/useTagStore';
@@ -22,10 +23,11 @@ import { PomodoroWorkbench } from '../tasks/PomodoroWorkbench';
 import { PomodoroFloating } from '../tasks/PomodoroFloating';
 import { usePomodoroStore } from '../../store/usePomodoroStore';
 import { StatsView } from '../tasks/StatsView';
+import { CalendarView } from '../tasks/CalendarView';
 import { FocusCardSkeleton, StatCardSkeleton } from '../ui/Skeleton';
-import type { TaskRow } from '../../shared/types/database';
+import type { TaskRow, CreateTaskInput } from '../../shared/types/database';
 
-type View = 'focus' | 'tasks' | 'stats';
+type View = 'focus' | 'tasks' | 'stats' | 'calendar';
 
 export const AppLayout: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -34,7 +36,10 @@ export const AppLayout: React.FC = () => {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [migrationOpen, setMigrationOpen] = useState(false);
   const [yesterdayTasks, setYesterdayTasks] = useState<TaskRow[]>([]);
-  const { loadTasks, tasks, updateTask, initSync: initTaskSync, migrateTasksToToday } = useTaskStore();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
+  const [prefillDate, setPrefillDate] = useState<Date | null>(null);
+  const { loadTasks, tasks, updateTask, createTask, initSync: initTaskSync, migrateTasksToToday } = useTaskStore();
   const { loadCategories, initSync: initCategorySync } = useCategoryStore();
   const { initSync: initTagSync } = useTagStore();
   const { theme, setTheme } = useTheme();
@@ -80,25 +85,23 @@ export const AppLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadTasks();
-    loadCategories();
-    initTaskSync();
-    initCategorySync();
-    initTagSync();
+    const init = async () => {
+      await loadTasks();
+      loadCategories();
+      initTaskSync();
+      initCategorySync();
+      initTagSync();
 
-    // Cross-day migration check
-    const today = new Date().toDateString();
-    const lastActiveDate = localStorage.getItem('focusflow-last-active-date');
-    if (lastActiveDate && lastActiveDate !== today) {
-      // Check for yesterday's unfinished tasks
-      const yesterdayStart = new Date();
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-      yesterdayStart.setHours(0, 0, 0, 0);
-      const yesterdayEnd = new Date(yesterdayStart);
-      yesterdayEnd.setHours(23, 59, 59, 999);
+      // Cross-day migration check — runs after tasks are loaded
+      const today = new Date().toDateString();
+      const lastActiveDate = localStorage.getItem('focusflow-last-active-date');
+      if (lastActiveDate && lastActiveDate !== today) {
+        const yesterdayStart = new Date();
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        yesterdayStart.setHours(0, 0, 0, 0);
+        const yesterdayEnd = new Date(yesterdayStart);
+        yesterdayEnd.setHours(23, 59, 59, 999);
 
-      // Need to check after tasks are loaded, so we use a delayed check
-      setTimeout(() => {
         const state = useTaskStore.getState();
         const unfinished = state.tasks.filter(
           (t) =>
@@ -114,11 +117,33 @@ export const AppLayout: React.FC = () => {
         } else {
           localStorage.setItem('focusflow-last-active-date', today);
         }
-      }, 500);
-    } else if (!lastActiveDate) {
-      localStorage.setItem('focusflow-last-active-date', today);
-    }
+      } else if (!lastActiveDate) {
+        localStorage.setItem('focusflow-last-active-date', today);
+      }
+    };
+    init();
   }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setEditingTask(null); setPrefillDate(null); setFormOpen(true); }
+        if (e.key === '1') { e.preventDefault(); setCurrentView('focus'); }
+        if (e.key === '2') { e.preventDefault(); setCurrentView('tasks'); }
+        if (e.key === '3') { e.preventDefault(); setCurrentView('stats'); }
+        if (e.key === '4') { e.preventDefault(); setCurrentView('calendar'); }
+        if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.querySelector<HTMLInputElement>('input[placeholder*="搜索"]')?.focus(); }
+      }
+      if (e.key === 'Escape') {
+        if (formOpen) { setFormOpen(false); setEditingTask(null); }
+        if (manageOpen) { setManageOpen(false); }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [formOpen, manageOpen]);
 
   const cycleTheme = () => {
     const next: Record<string, 'light' | 'dark' | 'system'> = {
@@ -187,6 +212,24 @@ export const AppLayout: React.FC = () => {
                 <span className="text-base">🍅</span>
                 番茄钟
               </button>
+              <button
+                onClick={() => setCurrentView('calendar')}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  currentView === 'calendar'
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                }`}
+              >
+                <Calendar className="h-4 w-4" />
+                日历
+              </button>
+              <button
+                onClick={() => setManageOpen(true)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              >
+                <span className="text-base">📋</span>
+                模板
+              </button>
             </div>
 
             <CategorySidebar
@@ -220,7 +263,23 @@ export const AppLayout: React.FC = () => {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden bg-background/30">
-          {currentView === 'focus' ? (
+          {currentView === 'calendar' ? (
+            <CalendarView
+              tasks={tasks}
+              onDateClick={(date) => {
+                setEditingTask(null);
+                setPrefillDate(date);
+                setFormOpen(true);
+              }}
+              onEventClick={(taskId) => {
+                const task = tasks.find((t) => t.id === taskId);
+                if (task) {
+                  setEditingTask(task);
+                  setFormOpen(true);
+                }
+              }}
+            />
+          ) : currentView === 'focus' ? (
             <FocusView />
           ) : currentView === 'stats' ? (
             <StatsView tasks={tasks} />
@@ -231,6 +290,26 @@ export const AppLayout: React.FC = () => {
             />
           )}
         </main>
+
+        {/* Task Form — used by calendar date click + Ctrl+N shortcut */}
+        <TaskForm
+          open={formOpen}
+          onClose={() => { setFormOpen(false); setEditingTask(null); setPrefillDate(null); }}
+          onSave={async (data) => {
+            if ('id' in data) {
+              await updateTask(data.id, data.input);
+            } else {
+              // Inject prefill date from calendar click
+              const input = { ...data, due_time: data.due_time ?? prefillDate?.getTime() };
+              await createTask(input);
+            }
+            setFormOpen(false);
+            setEditingTask(null);
+            setPrefillDate(null);
+          }}
+          task={editingTask}
+          categories={categories}
+        />
 
         <ManageDialog open={manageOpen} onClose={() => setManageOpen(false)} />
         <PomodoroWorkbench />

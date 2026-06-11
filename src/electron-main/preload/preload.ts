@@ -65,6 +65,8 @@ const tagApi = {
     ipcRenderer.invoke('db:tag:list'),
   getForTask: (taskId: string): Promise<IPCResponse<import('../../shared/types/database').TagRow[]>> =>
     ipcRenderer.invoke('db:tag:getForTask', taskId),
+  getForTasks: (taskIds: string[]): Promise<IPCResponse<Record<string, import('../../shared/types/database').TagRow[]>>> =>
+    ipcRenderer.invoke('db:tag:getForTasks', taskIds),
   setTaskTags: (taskId: string, tagIds: string[]): Promise<IPCResponse<boolean>> =>
     ipcRenderer.invoke('db:tag:setTaskTags', taskId, tagIds),
 };
@@ -72,11 +74,14 @@ const tagApi = {
 type SyncCallback = (event: DBSyncEvent) => void;
 
 const appApi = {
-  onSync: (callback: SyncCallback): void => {
+  onSync: (callback: SyncCallback): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: DBSyncEvent) => {
       callback(data);
     };
     ipcRenderer.on(IPC_CHANNELS.SYNC, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.SYNC, handler);
+    };
   },
 
   removeSyncListener: (callback: SyncCallback): void => {

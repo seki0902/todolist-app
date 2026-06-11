@@ -107,4 +107,5 @@ export interface TaskListFilter {
   parent_id?: string | null;
   search?: string;
   tag_ids?: string[];
+  due_date?: string; // YYYY-MM-DD — filter tasks due on this date
 }

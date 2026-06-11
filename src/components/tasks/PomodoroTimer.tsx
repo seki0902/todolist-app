@@ -10,12 +10,13 @@ const DURATIONS = [
 ];
 
 interface PomodoroTimerProps {
+  taskId?: string;
   taskTitle?: string;
   open: boolean;
   onClose: () => void;
 }
 
-export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, onClose }) => {
+export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskId, taskTitle, open, onClose }) => {
   const [duration, setDuration] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -49,14 +50,23 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ taskTitle, open, o
 
   const persistSession = () => {
     const key = taskTitle || '__untitled__';
+    const newSessionCount = sessions + 1;
     try {
       const stored = localStorage.getItem('focusflow-pomodoro-sessions');
       const all: Record<string, number> = stored ? JSON.parse(stored) : {};
-      all[key] = (all[key] || 0) + 1;
+      all[key] = newSessionCount;
       localStorage.setItem('focusflow-pomodoro-sessions', JSON.stringify(all));
-      setSessions(all[key]);
+      setSessions(newSessionCount);
       setTotalSessions(Object.values(all).reduce((a, b) => a + b, 0));
     } catch {}
+    // Persist to task's ai_meta for cross-device sync
+    if (taskId) {
+      try {
+        (window as any).api?.db?.updateTask?.(taskId, {
+          ai_meta: JSON.stringify({ pomodoro_sessions: newSessionCount, last_session_at: Date.now() }),
+        });
+      } catch {}
+    }
     // System notification
     try {
       (window as any).api?.notify?.pomodoroComplete?.(taskTitle);

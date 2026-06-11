@@ -83,7 +83,9 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
   const handleApplyTemplate = async (id: string) => {
     await api.db.applyTemplate(id);
     loadTasks();
-    alert('模板已应用，任务已生成');
+    // Notify silently — tasks appear in the list, no jarring alert needed
+    const tpl = templates.find((t) => t.id === id);
+    console.log(`Template "${tpl?.name}" applied successfully`);
   };
 
   const handleExport = () => {

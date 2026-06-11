@@ -70,10 +70,11 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     deleteTask,
   } = useTaskStore();
   const { categories } = useCategoryStore();
-  const { tags, selectedTagIds, loadTags, toggleSelectedTag, clearTagFilter } = useTagStore();
+  const { tags, selectedTagIds, loadTags, loadTaskTags, toggleSelectedTag, clearTagFilter } = useTagStore();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [showCancelled, setShowCancelled] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
@@ -86,8 +87,19 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
 
   // Reload tasks with tag filter when selection changes
   useEffect(() => {
-    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined });
+    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined });
   }, [selectedTagIds]);
+
+  // Reload tasks when date filter changes
+  useEffect(() => {
+    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined });
+  }, [selectedDate]);
+
+  // Batch load tags for all visible tasks (replaces per-item N+1 queries)
+  useEffect(() => {
+    const ids = tasks.map((t) => t.id);
+    if (ids.length > 0) loadTaskTags(ids);
+  }, [tasks]);
 
   // Filter and sort tasks (client-side filters on the already-filtered list)
   const displayTasks = useMemo(() => {
@@ -106,6 +118,11 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
           t.title.toLowerCase().includes(term) ||
           t.description.toLowerCase().includes(term)
       );
+    }
+
+    // Hide cancelled tasks by default (soft delete)
+    if (!showCancelled) {
+      result = result.filter((t) => t.status !== TaskStatus.CANCELLED);
     }
 
     return buildTree(result);
@@ -188,9 +205,12 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('确定要删除这条任务吗？如果有子任务也会失去关联。')) {
-      await deleteTask(id);
-    }
+    // Soft delete: archive to cancelled instead of physical deletion
+    await updateTask(id, { status: TaskStatus.CANCELLED, progress: 0 });
+  };
+
+  const handleRestore = async (id: string) => {
+    await updateTask(id, { status: TaskStatus.TODO, progress: 0 });
   };
 
   const taskIds = useMemo(() => displayTasks.map((t) => t.id), [displayTasks]);
@@ -288,6 +308,16 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
               .map((s) => ({ value: s, label: TASK_STATUS_LABELS[s] })),
           ]}
         />
+        <button
+          onClick={() => setShowCancelled(!showCancelled)}
+          className={`text-xs rounded-lg px-2.5 py-1 transition-colors ${
+            showCancelled
+              ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {showCancelled ? '隐藏已归档' : '显示已归档'}
+        </button>
         {/* Tag filter chips */}
         {tags.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -350,6 +380,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
                   isNextStep={nextStepIds.has(task.id)}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onRestore={handleRestore}
                   onCopy={handleCopy}
                   onStatusChange={handleStatusChange}
                 />

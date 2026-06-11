@@ -4,11 +4,13 @@ import { DBSyncEvent } from '../shared/types/ipc';
 
 interface TagState {
   tags: TagRow[];
+  taskTags: Record<string, TagRow[]>; // taskId → tags cache
   loading: boolean;
   error: string | null;
   selectedTagIds: string[];
 
   loadTags: () => Promise<void>;
+  loadTaskTags: (taskIds: string[]) => Promise<void>;
   createTag: (name: string) => Promise<TagRow | null>;
   deleteTag: (id: string) => Promise<boolean>;
   toggleSelectedTag: (tagId: string) => void;
@@ -19,6 +21,7 @@ interface TagState {
 
 export const useTagStore = create<TagState>((set, get) => ({
   tags: [],
+  taskTags: {},
   loading: false,
   error: null,
   selectedTagIds: [],
@@ -36,6 +39,18 @@ export const useTagStore = create<TagState>((set, get) => ({
       const message = err instanceof Error ? err.message : 'Unknown error';
       set({ error: message, loading: false });
     }
+  },
+
+  loadTaskTags: async (taskIds: string[]) => {
+    if (taskIds.length === 0) return;
+    try {
+      const response = await window.api.tag.getForTasks(taskIds);
+      if (response.success && response.data) {
+        set((state) => ({
+          taskTags: { ...state.taskTags, ...response.data },
+        }));
+      }
+    } catch {}
   },
 
   createTag: async (name: string) => {
