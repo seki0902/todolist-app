@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Play, Pause, RotateCcw, X, Search, Minimize2, Clock } from 'lucide-react';
 import { usePomodoroStore } from '../../store/usePomodoroStore';
 import { useTaskStore } from '../../store/useTaskStore';
-import { TaskStatus } from '../../shared/types/database';
+import { TaskStatus, getPriorityLabel } from '../../shared/types/database';
 
 const DURATIONS = [15, 25, 35, 45, 60];
 
@@ -34,7 +34,7 @@ export const PomodoroWorkbench: React.FC = () => {
   const activeTasks = useMemo(
     () =>
       tasks.filter(
-        (t) => t.status !== TaskStatus.DONE && t.status !== TaskStatus.CANCELLED
+        (t) => t.status !== TaskStatus.CANCELLED && t.progress < 100
       ),
     [tasks]
   );
@@ -131,7 +131,7 @@ export const PomodoroWorkbench: React.FC = () => {
                     >
                       <span className="truncate flex-1">{t.title}</span>
                       <span className="text-xs text-muted-foreground">
-                        P{t.priority}
+                        {getPriorityLabel(t.priority)}
                       </span>
                     </button>
                   ))

@@ -22,11 +22,61 @@ export enum Priority {
 }
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
-  [Priority.P1]: 'P1',
-  [Priority.P2]: 'P2',
-  [Priority.P3]: 'P3',
-  [Priority.P4]: 'P4',
+  [Priority.P1]: '非常紧急',
+  [Priority.P2]: '紧急',
+  [Priority.P3]: '一般',
+  [Priority.P4]: '不着急',
 };
+
+export type PriorityStyle = 'clean' | 'funny' | 'custom';
+
+export const PRIORITY_LABELS_FUNNY: Record<Priority, string> = {
+  [Priority.P1]: '🔥 火烧眉毛',
+  [Priority.P2]: '⚡ 有点着急',
+  [Priority.P3]: '📋 悠着来',
+  [Priority.P4]: '🧘 随缘吧',
+};
+
+export const PRIORITY_LABELS_CLEAN: Record<Priority, string> = {
+  [Priority.P1]: '🔴 非常紧急',
+  [Priority.P2]: '🟠 紧急',
+  [Priority.P3]: '🔵 一般',
+  [Priority.P4]: '⚪ 不着急',
+};
+
+export function getPriorityLabel(priority: Priority, style?: PriorityStyle, customLabels?: Record<Priority, string>): string {
+  const s = style ?? getStoredPriorityStyle();
+  switch (s) {
+    case 'funny': return PRIORITY_LABELS_FUNNY[priority];
+    case 'custom': return customLabels?.[priority] ?? PRIORITY_LABELS_CLEAN[priority];
+    default: return PRIORITY_LABELS_CLEAN[priority];
+  }
+}
+
+export function getStoredPriorityStyle(): PriorityStyle {
+  try {
+    return (localStorage.getItem('focusflow-priority-style') as PriorityStyle) || 'clean';
+  } catch { return 'clean'; }
+}
+
+export function setStoredPriorityStyle(style: PriorityStyle): void {
+  try {
+    localStorage.setItem('focusflow-priority-style', style);
+  } catch {}
+}
+
+export function getStoredCustomPriorityLabels(): Record<Priority, string> | undefined {
+  try {
+    const raw = localStorage.getItem('focusflow-custom-priority-labels');
+    return raw ? JSON.parse(raw) : undefined;
+  } catch { return undefined; }
+}
+
+export function setStoredCustomPriorityLabels(labels: Record<Priority, string>): void {
+  try {
+    localStorage.setItem('focusflow-custom-priority-labels', JSON.stringify(labels));
+  } catch {}
+}
 
 export const PRIORITY_COLORS: Record<Priority, { bg: string; text: string; badge: string }> = {
   [Priority.P1]: { bg: 'bg-red-50 dark:bg-red-950', text: 'text-red-700 dark:text-red-300', badge: 'destructive' as const },

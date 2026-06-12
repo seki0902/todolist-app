@@ -94,10 +94,10 @@ export function createStickyWindow(): BrowserWindow {
       {
         label: '透明度',
         submenu: [
-          { label: '20%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.2) },
-          { label: '40%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.4) },
           { label: '60%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.6) },
+          { label: '70%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.7) },
           { label: '80%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.8) },
+          { label: '90%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(0.9) },
           { label: '100%', type: 'radio', checked: false, click: () => stickyWindow?.setOpacity(1.0) },
         ],
       },

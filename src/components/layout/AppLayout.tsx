@@ -26,6 +26,7 @@ import { StatsView } from '../tasks/StatsView';
 import { CalendarView } from '../tasks/CalendarView';
 import { FocusCardSkeleton, StatCardSkeleton } from '../ui/Skeleton';
 import type { TaskRow, CreateTaskInput } from '../../shared/types/database';
+import { getPriorityLabel } from '../../shared/types/database';
 
 type View = 'focus' | 'tasks' | 'stats' | 'calendar';
 
@@ -40,7 +41,7 @@ export const AppLayout: React.FC = () => {
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [prefillDate, setPrefillDate] = useState<Date | null>(null);
   const { loadTasks, tasks, updateTask, createTask, initSync: initTaskSync, migrateTasksToToday } = useTaskStore();
-  const { loadCategories, initSync: initCategorySync } = useCategoryStore();
+  const { categories, loadCategories, initSync: initCategorySync } = useCategoryStore();
   const { initSync: initTagSync } = useTagStore();
   const { theme, setTheme } = useTheme();
 
@@ -103,13 +104,15 @@ export const AppLayout: React.FC = () => {
         yesterdayEnd.setHours(23, 59, 59, 999);
 
         const state = useTaskStore.getState();
+        // Catch all unfinished tasks: due yesterday OR updated yesterday (catches no-due-date tasks)
         const unfinished = state.tasks.filter(
           (t) =>
-            t.status !== 'done' &&
+            t.progress < 100 &&
             t.status !== 'cancelled' &&
-            t.due_time &&
-            t.due_time >= yesterdayStart.getTime() &&
-            t.due_time <= yesterdayEnd.getTime()
+            (
+              (t.due_time && t.due_time >= yesterdayStart.getTime() && t.due_time <= yesterdayEnd.getTime()) ||
+              (t.updated_at >= yesterdayStart.getTime() && t.updated_at <= yesterdayEnd.getTime())
+            )
         );
         if (unfinished.length > 0) {
           setYesterdayTasks(unfinished);
@@ -241,6 +244,9 @@ export const AppLayout: React.FC = () => {
               }}
             />
 
+            {/* Minimized pomodoro timer docks here */}
+            <PomodoroFloating />
+
             {/* Bottom actions */}
             <div className="mt-auto p-3 border-t border-white/10 dark:border-white/5 flex items-center gap-1">
               <button
@@ -262,7 +268,7 @@ export const AppLayout: React.FC = () => {
           </div>
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-background/30">
+        <main className="flex-1 flex flex-col overflow-hidden bg-background/30 relative">
           {currentView === 'calendar' ? (
             <CalendarView
               tasks={tasks}
@@ -313,7 +319,6 @@ export const AppLayout: React.FC = () => {
 
         <ManageDialog open={manageOpen} onClose={() => setManageOpen(false)} />
         <PomodoroWorkbench />
-        <PomodoroFloating />
         <DailyMigrationDialog
           open={migrationOpen}
           yesterdayTasks={yesterdayTasks}
@@ -353,11 +358,11 @@ const FocusView: React.FC = () => {
   todayEnd.setHours(23, 59, 59, 999);
 
   const todayTasks = tasks.filter(
-    (t) => t.due_time && t.due_time >= todayStart.getTime() && t.due_time <= todayEnd.getTime() && t.status !== 'done' && t.status !== 'cancelled'
+    (t) => t.due_time && t.due_time >= todayStart.getTime() && t.due_time <= todayEnd.getTime() && t.progress < 100 && t.status !== 'cancelled'
   );
-  const inProgressTasks = tasks.filter((t) => t.status === 'in_progress');
-  const urgentTasks = tasks.filter((t) => t.priority === 1 && t.status !== 'done' && t.status !== 'cancelled');
-  const nextUpTasks = tasks.filter((t) => t.status === 'todo' && t.priority <= 2).slice(0, 5);
+  const inProgressTasks = tasks.filter((t) => t.progress > 0 && t.progress < 100 && t.status !== 'cancelled');
+  const urgentTasks = tasks.filter((t) => t.priority === 1 && t.progress < 100 && t.status !== 'cancelled');
+  const nextUpTasks = tasks.filter((t) => t.progress === 0 && t.status !== 'cancelled' && t.priority <= 2).slice(0, 5);
   // Today-first priority: today urgent → today any → urgent → in_progress
   const todayUrgent = todayTasks.filter(t => t.priority === 1);
   const focusTask = todayUrgent[0] || todayTasks[0] || urgentTasks[0] || inProgressTasks[0];
@@ -415,7 +420,7 @@ const FocusView: React.FC = () => {
             <span className={`text-xs font-bold ${
               focusTask.priority === 1 ? 'text-red-500' : focusTask.priority === 2 ? 'text-orange-500' : 'text-blue-500'
             }`}>
-              P{focusTask.priority}
+              {getPriorityLabel(focusTask.priority)}
             </span>
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2">{focusTask.title}</h2>
@@ -435,7 +440,8 @@ const FocusView: React.FC = () => {
                   const rect = bar.getBoundingClientRect();
                   const x = ev.clientX - rect.left;
                   const pct = Math.max(0, Math.min(100, Math.round((x / rect.width) * 100)));
-                  useTaskStore.getState().updateTask(focusTask.id, { progress: pct });
+                  const newStatus = pct === 100 ? 'done' : pct > 0 ? 'in_progress' : 'todo';
+                  useTaskStore.getState().updateTask(focusTask.id, { progress: pct, status: newStatus });
                 };
                 updateFromMouse(e as any);
                 const cleanup = () => { document.removeEventListener('mousemove', updateFromMouse); document.removeEventListener('mouseup', cleanup); };
@@ -497,7 +503,7 @@ const FocusView: React.FC = () => {
               <div key={task.id} className="glass-card flex items-center gap-3 p-3">
                 <span className={`text-xs font-bold flex-shrink-0 ${
                   task.priority === 1 ? 'text-red-500' : task.priority === 2 ? 'text-orange-500' : 'text-blue-500'
-                }`}>P{task.priority}</span>
+                }`}>{getPriorityLabel(task.priority)}</span>
                 <span className="text-sm text-foreground flex-1 truncate">{task.title}</span>
                 <span className="text-xs text-muted-foreground">
                   {new Date(task.due_time!).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
@@ -519,7 +525,7 @@ const FocusView: React.FC = () => {
               <div key={task.id} className="glass-card flex items-center gap-3 p-3 opacity-80 hover:opacity-100">
                 <span className={`text-xs font-bold ${
                   task.priority === 1 ? 'text-red-500' : task.priority === 2 ? 'text-orange-500' : 'text-gray-400'
-                }`}>P{task.priority}</span>
+                }`}>{getPriorityLabel(task.priority)}</span>
                 <span className="text-sm text-foreground flex-1 truncate">{task.title}</span>
                 <span className="text-xs text-muted-foreground">待开始</span>
               </div>

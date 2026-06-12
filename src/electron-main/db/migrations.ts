@@ -133,6 +133,14 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    up(db: Database) {
+      db.exec(`
+        ALTER TABLE templates ADD COLUMN category_id TEXT;
+      `);
+    },
+  },
 ];
 
 export function getAppliedMigrations(db: Database): number[] {

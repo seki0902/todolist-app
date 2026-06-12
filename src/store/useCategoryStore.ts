@@ -38,7 +38,8 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   createCategory: async (input: CreateCategoryInput) => {
     const response = await window.api.db.createCategory(input);
     if (response.success && response.data) {
-      set((state) => ({ categories: [...state.categories, response.data!] }));
+      // Don't add to state here — the sync broadcast from IPC will handle it.
+      // Return the created category for callers that need the ID immediately.
       return response.data;
     }
     return null;

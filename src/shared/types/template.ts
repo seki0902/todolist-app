@@ -3,6 +3,7 @@ export interface TemplateRow {
   name: string;
   description: string | null;
   icon: string | null;
+  category_id: string | null;
   created_at: number;
 }
 
@@ -20,6 +21,7 @@ export interface CreateTemplateInput {
   name: string;
   description?: string | null;
   icon?: string | null;
+  category_id?: string | null;
   steps?: CreateTemplateStepInput[];
 }
 
@@ -27,6 +29,7 @@ export interface UpdateTemplateInput {
   name?: string;
   description?: string | null;
   icon?: string | null;
+  category_id?: string | null;
 }
 
 export interface CreateTemplateStepInput {

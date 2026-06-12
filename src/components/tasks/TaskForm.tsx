@@ -4,7 +4,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import type { TaskRow, CreateTaskInput, UpdateTaskInput, CategoryRow } from '../../shared/types/database';
-import { Priority, PRIORITY_LABELS, TaskStatus, TASK_STATUS_LABELS } from '../../shared/types/database';
+import { Priority, getPriorityLabel } from '../../shared/types/database';
 import { TagSelect } from './TagSelect';
 
 interface TaskFormProps {
@@ -27,7 +27,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>(Priority.P3);
-  const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
   const [categoryId, setCategoryId] = useState('');
   const [dueTime, setDueTime] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('');
@@ -43,7 +42,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         setTitle(task.title);
         setDescription(task.description);
         setPriority(task.priority);
-        setStatus(task.status);
         setCategoryId(task.category_id ?? '');
         setDueTime(task.due_time ? toDatetimeLocal(task.due_time) : '');
         setRecurrenceType(task.recurrence_type ?? '');
@@ -63,7 +61,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         setTitle('');
         setDescription('');
         setPriority(Priority.P3);
-        setStatus(TaskStatus.TODO);
         setCategoryId(defaultCategoryId ?? '');
         setDueTime('');
         setRecurrenceType('');
@@ -85,7 +82,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       title: title.trim(),
       description: description.trim(),
       priority,
-      status,
       category_id: categoryId || null,
       due_time: dueTimeValue,
       reminder_time: reminderTimeValue,
@@ -122,30 +118,17 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Select
-            label="优先级"
-            value={String(priority)}
-            onChange={(v) => setPriority(Number(v) as Priority)}
-            options={Object.values(Priority)
-              .filter((v): v is Priority => typeof v === 'number')
-              .map((p) => ({
-                value: String(p),
-                label: `${PRIORITY_LABELS[p]} ${
-                  p === Priority.P1 ? '🔴' : p === Priority.P2 ? '🟠' : p === Priority.P3 ? '🔵' : '⚪'
-                }`,
-              }))}
-          />
-          <Select
-            label="状态"
-            value={status}
-            onChange={(v) => setStatus(v as TaskStatus)}
-            options={Object.values(TaskStatus).map((s) => ({
-              value: s,
-              label: TASK_STATUS_LABELS[s],
+        <Select
+          label="优先级"
+          value={String(priority)}
+          onChange={(v) => setPriority(Number(v) as Priority)}
+          options={Object.values(Priority)
+            .filter((v): v is Priority => typeof v === 'number')
+            .map((p) => ({
+              value: String(p),
+              label: getPriorityLabel(p),
             }))}
-          />
-        </div>
+        />
         <Select
           label="分类"
           value={categoryId}

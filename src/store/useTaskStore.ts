@@ -42,7 +42,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   createTask: async (input: CreateTaskInput) => {
     const response = await window.api.db.createTask(input);
     if (response.success && response.data) {
-      set((state) => ({ tasks: [...state.tasks, response.data!] }));
+      // Don't add to state here — the sync broadcast from IPC will handle it.
       return response.data;
     }
     return null;

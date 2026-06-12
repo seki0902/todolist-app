@@ -21,7 +21,7 @@ export class TemplateRepository {
     const now = Date.now();
 
     const insertTemplate = this.db.prepare(
-      'INSERT INTO templates (id, name, description, icon, created_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO templates (id, name, description, icon, category_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     );
     const insertStep = this.db.prepare(
       'INSERT INTO template_steps (id, template_id, title, sort, default_priority, default_pomodoro) VALUES (?, ?, ?, ?, ?, ?)'
@@ -29,7 +29,7 @@ export class TemplateRepository {
 
     this.db.exec('BEGIN');
     try {
-      insertTemplate.run([id, input.name, input.description ?? null, input.icon ?? null, now]);
+      insertTemplate.run([id, input.name, input.description ?? null, input.icon ?? null, input.category_id ?? null, now]);
 
       if (input.steps && input.steps.length > 0) {
         for (const step of input.steps) {
@@ -74,6 +74,10 @@ export class TemplateRepository {
     if (input.icon !== undefined) {
       fields.push('icon = ?');
       params.push(input.icon);
+    }
+    if (input.category_id !== undefined) {
+      fields.push('category_id = ?');
+      params.push(input.category_id);
     }
 
     if (fields.length > 0) {
@@ -138,6 +142,7 @@ export class TemplateRepository {
     `);
 
     const createdTasks: TaskRow[] = [];
+    const templateCategoryId = (template as any).category_id || null;
 
     this.db.exec('BEGIN');
     try {
@@ -154,7 +159,7 @@ export class TemplateRepository {
         null,
         null,
         null,
-        null,
+        templateCategoryId,
         null,
         0,
         0,
@@ -177,7 +182,7 @@ export class TemplateRepository {
           null,
           null,
           null,
-          null,
+          templateCategoryId,
           parentTaskId,
           step.sort,
           step.default_pomodoro,

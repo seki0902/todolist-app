@@ -1,5 +1,6 @@
 export type { TaskRow, CreateTaskInput, UpdateTaskInput, TaskListFilter } from './task';
-export { TaskStatus, TASK_STATUS_LABELS, Priority, PRIORITY_LABELS, PRIORITY_COLORS, PRIORITY_ORDER } from './task';
+export { TaskStatus, TASK_STATUS_LABELS, Priority, PRIORITY_LABELS, PRIORITY_COLORS, PRIORITY_ORDER, PRIORITY_LABELS_FUNNY, PRIORITY_LABELS_CLEAN, getPriorityLabel, getStoredPriorityStyle, setStoredPriorityStyle, getStoredCustomPriorityLabels, setStoredCustomPriorityLabels } from './task';
+export type { PriorityStyle } from './task';
 
 export type { CategoryRow, CreateCategoryInput, UpdateCategoryInput } from './category';
 

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { TaskStatus, Priority } from '../../shared/types/database';
-import { Check, GripHorizontal, Focus, ListTodo, Play } from 'lucide-react';
+import { Check, GripHorizontal, Focus, ListTodo, Play, ArrowLeft, Info } from 'lucide-react';
 
-const OPACITY_PRESETS = [20, 40, 60, 80, 100] as const;
+const OPACITY_PRESETS = [60, 70, 80, 90, 100] as const;
 
 export const StickyNote: React.FC = () => {
   const { tasks, loadTasks, updateTask } = useTaskStore();
-  const [opacity, setOpacity] = useState(0.85);
+  const [opacity, setOpacity] = useState(0.80);
 
   useEffect(() => {
     loadTasks();
@@ -30,14 +30,14 @@ export const StickyNote: React.FC = () => {
   todayEnd.setHours(23, 59, 59, 999);
 
   const activeTasks = tasks.filter(
-    (t) => t.status !== TaskStatus.DONE && t.status !== TaskStatus.CANCELLED
+    (t) => t.status !== TaskStatus.CANCELLED && t.progress < 100
   );
 
   const todayTasks = activeTasks.filter(
     (t) => t.due_time && t.due_time >= todayStart.getTime() && t.due_time <= todayEnd.getTime()
   );
   const p1Tasks = activeTasks.filter((t) => t.priority === Priority.P1);
-  const inProgressTasks = activeTasks.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+  const inProgressTasks = activeTasks.filter((t) => t.progress > 0 && t.progress < 100);
 
   const handleDone = async (id: string) => {
     await updateTask(id, { status: TaskStatus.DONE, progress: 100 });
@@ -101,8 +101,18 @@ export const StickyNote: React.FC = () => {
         style={{ WebkitAppRegion: 'drag' as any }}
       >
         <GripHorizontal className="h-4 w-4 text-white/40" />
-        <span className="text-sm font-semibold text-white/90">FocusFlow</span>
+        <span className="text-sm font-semibold text-white/90">FocusFlow 便签</span>
         <div className="flex-1" />
+        {/* Return to main window */}
+        <button
+          onClick={() => { try { (window as any).api?.sticky?.focusMain?.(); } catch {} }}
+          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs text-white/70 hover:text-white hover:bg-white/15 transition-colors"
+          style={{ WebkitAppRegion: 'no-drag' as any }}
+          title="返回主窗口"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          返回
+        </button>
         {/* Opacity presets */}
         <div className="flex items-center gap-0.5" style={{ WebkitAppRegion: 'no-drag' as any }}>
           {OPACITY_PRESETS.map((pct) => (
@@ -118,6 +128,20 @@ export const StickyNote: React.FC = () => {
               {pct}%
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Guidance banner for new users */}
+      <div
+        className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/5 p-3 flex items-start gap-2"
+        style={{ WebkitAppRegion: 'no-drag' as any }}
+      >
+        <Info className="h-3.5 w-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-[11px] font-medium text-white/80">💡 便签模式指南</p>
+          <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">
+            点击任务可快速切换至主窗口 · 勾选圆圈完成任务 · 顶部调整透明度 · 按需固定悬浮
+          </p>
         </div>
       </div>
 

@@ -12,9 +12,8 @@ import { TaskItem } from './TaskItem';
 import { TaskSkeleton } from '../ui/Skeleton';
 import { TaskForm } from './TaskForm';
 import { Button } from '../ui/Button';
-import { Select } from '../ui/Select';
 import type { TaskRow, CreateTaskInput, UpdateTaskInput } from '../../shared/types/database';
-import { TaskStatus, TASK_STATUS_LABELS, Priority, PRIORITY_ORDER } from '../../shared/types/database';
+import { TaskStatus, Priority, PRIORITY_ORDER } from '../../shared/types/database';
 
 interface TaskListProps {
   categoryId: string | null;
@@ -22,9 +21,19 @@ interface TaskListProps {
 }
 
 function buildTree(tasks: TaskRow[]): TaskRow[] {
-  // Sort by priority (P1 first), then by sort order
+  // Sort non-done by priority first, then done tasks to the bottom
   const sorted = [...tasks].sort((a, b) => {
+    // Different parents → don't reorder across trees (parent order matters for nesting)
     if (a.parent_id !== b.parent_id) return 0;
+    // Done tasks go last
+    const aDone = a.status === 'done' ? 1 : 0;
+    const bDone = b.status === 'done' ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    // Cancelled also at bottom (but above done)
+    const aCancelled = a.status === 'cancelled' ? 1 : 0;
+    const bCancelled = b.status === 'cancelled' ? 1 : 0;
+    if (aCancelled !== bCancelled) return aCancelled - bCancelled;
+    // Within same status group, sort by priority then sort order
     const pa = PRIORITY_ORDER[a.priority] ?? 99;
     const pb = PRIORITY_ORDER[b.priority] ?? 99;
     if (pa !== pb) return pa - pb;
@@ -60,6 +69,13 @@ function buildTree(tasks: TaskRow[]): TaskRow[] {
   return flattened.map((f) => f.task);
 }
 
+// Get child info for a parent task
+function getChildInfo(tasks: TaskRow[], parentId: string): { count: number; completed: number } {
+  const children = tasks.filter((t) => t.parent_id === parentId);
+  const completed = children.filter((t) => t.status === 'done' || t.status === 'cancelled').length;
+  return { count: children.length, completed };
+}
+
 export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) => {
   const {
     tasks,
@@ -73,7 +89,6 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
   const { tags, selectedTagIds, loadTags, loadTaskTags, toggleSelectedTag, clearTagFilter } = useTagStore();
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showCancelled, setShowCancelled] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
@@ -108,9 +123,6 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     if (categoryId) {
       result = result.filter((t) => t.category_id === categoryId);
     }
-    if (statusFilter !== 'all') {
-      result = result.filter((t) => t.status === statusFilter);
-    }
     if (search.trim()) {
       const term = search.toLowerCase();
       result = result.filter(
@@ -124,6 +136,17 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     if (!showCancelled) {
       result = result.filter((t) => t.status !== TaskStatus.CANCELLED);
     }
+
+    // Hide completed tasks that were done before today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    result = result.filter((t) => {
+      if (t.status !== TaskStatus.DONE) return true;
+      // Only keep done tasks completed today, or with due_time today/future
+      if (t.updated_at >= todayStart.getTime()) return true;
+      if (t.due_time && t.due_time >= todayStart.getTime()) return true;
+      return false;
+    });
 
     return buildTree(result);
   }, [tasks, categoryId, statusFilter, search]);
@@ -164,12 +187,40 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     return { depthMap, nextStepIds };
   }, [displayTasks]);
 
-  const handleStatusChange = useCallback(
-    (task: TaskRow, newStatus: TaskStatus, progress?: number) => {
-      updateTask(task.id, {
-        status: newStatus,
-        progress: progress ?? (newStatus === TaskStatus.DONE ? 100 : task.progress),
-      });
+  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
+
+  const handleToggleExpand = useCallback((taskId: string) => {
+    setCollapsedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const handleProgressChange = useCallback(
+    (task: TaskRow, progress: number) => {
+      // Auto-set status: drag progress → in_progress, progress=100 → done
+      let newStatus = task.status;
+      if (progress === 100) {
+        newStatus = TaskStatus.DONE;
+      } else if (progress > 0 && task.status === TaskStatus.TODO) {
+        newStatus = TaskStatus.IN_PROGRESS;
+      } else if (progress < 100 && task.status === TaskStatus.DONE) {
+        newStatus = TaskStatus.IN_PROGRESS;
+      }
+      updateTask(task.id, { progress, status: newStatus });
+    },
+    [updateTask]
+  );
+
+  const handleToggleDone = useCallback(
+    (task: TaskRow) => {
+      if (task.status === TaskStatus.DONE) {
+        updateTask(task.id, { status: TaskStatus.TODO, progress: Math.min(task.progress, 99) });
+      } else {
+        updateTask(task.id, { status: TaskStatus.DONE, progress: 100 });
+      }
     },
     [updateTask]
   );
@@ -213,24 +264,35 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     await updateTask(id, { status: TaskStatus.TODO, progress: 0 });
   };
 
-  const taskIds = useMemo(() => displayTasks.map((t) => t.id), [displayTasks]);
+  // Filter out collapsed children from display
+  const visibleTasks = useMemo(() => {
+    const collapsedChildIds = new Set<string>();
+    for (const task of displayTasks) {
+      if (task.parent_id && collapsedParents.has(task.parent_id)) {
+        collapsedChildIds.add(task.id);
+      }
+    }
+    return displayTasks.filter((t) => !collapsedChildIds.has(t.id));
+  }, [displayTasks, collapsedParents]);
+
+  const taskIds = useMemo(() => visibleTasks.map((t) => t.id), [visibleTasks]);
 
   const counts = {
     total: tasks.filter((t) => !categoryId || t.category_id === categoryId).length,
     todo: tasks.filter(
       (t) =>
         (!categoryId || t.category_id === categoryId) &&
-        t.status === TaskStatus.TODO
+        t.status !== TaskStatus.CANCELLED && t.progress === 0
     ).length,
     inProgress: tasks.filter(
       (t) =>
         (!categoryId || t.category_id === categoryId) &&
-        t.status === TaskStatus.IN_PROGRESS
+        t.status !== TaskStatus.CANCELLED && t.progress > 0 && t.progress < 100
     ).length,
     done: tasks.filter(
       (t) =>
         (!categoryId || t.category_id === categoryId) &&
-        t.status === TaskStatus.DONE
+        (t.progress >= 100 || t.status === TaskStatus.DONE)
     ).length,
   };
 
@@ -298,16 +360,6 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
             className="flex h-8 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: 'all', label: '全部状态' },
-            ...Object.values(TaskStatus)
-              .filter((v): v is TaskStatus => typeof v === 'string')
-              .map((s) => ({ value: s, label: TASK_STATUS_LABELS[s] })),
-          ]}
-        />
         <button
           onClick={() => setShowCancelled(!showCancelled)}
           className={`text-xs rounded-lg px-2.5 py-1 transition-colors ${
@@ -359,7 +411,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
               <TaskSkeleton key={i} />
             ))}
           </div>
-        ) : displayTasks.length === 0 ? (
+        ) : visibleTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <ListTodo className="h-12 w-12 mb-3 opacity-30" />
             <p className="text-sm">暂无任务</p>
@@ -371,20 +423,30 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
             strategy={verticalListSortingStrategy}
           >
             <div className="flex flex-col gap-2 stagger">
-              {displayTasks.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  depth={depthMap.get(task.id) ?? 0}
-                  isDropTarget={dragOverId === task.id}
-                  isNextStep={nextStepIds.has(task.id)}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onRestore={handleRestore}
-                  onCopy={handleCopy}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
+              {visibleTasks.map((task) => {
+                const childInfo = getChildInfo(tasks, task.id);
+                const hasChildren = childInfo.count > 0;
+                return (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    depth={depthMap.get(task.id) ?? 0}
+                    isDropTarget={dragOverId === task.id}
+                    isNextStep={nextStepIds.has(task.id)}
+                    hasChildren={hasChildren}
+                    childCount={childInfo.count}
+                    completedChildCount={childInfo.completed}
+                    isExpanded={!collapsedParents.has(task.id)}
+                    onToggleExpand={() => handleToggleExpand(task.id)}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onRestore={handleRestore}
+                    onCopy={handleCopy}
+                    onProgressChange={handleProgressChange}
+                    onToggleDone={handleToggleDone}
+                  />
+                );
+              })}
             </div>
           </SortableContext>
         )}

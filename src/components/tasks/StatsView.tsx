@@ -1,7 +1,22 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line } from 'recharts';
 import type { TaskRow } from '../../shared/types/database';
+import { Priority, getPriorityLabel } from '../../shared/types/database';
 import { useCategoryStore } from '../../store/useCategoryStore';
+
+interface PomodoroRecord {
+  taskId: string | null;
+  taskTitle: string;
+  duration: number;
+  completedAt: number;
+}
+
+function loadPomodoroHistory(): PomodoroRecord[] {
+  try {
+    const raw = localStorage.getItem('focusflow-pomodoro-history');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
 
 interface StatsViewProps {
   tasks: TaskRow[];
@@ -21,24 +36,23 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const done = tasks.filter((t) => t.status === 'done');
+    const done = tasks.filter((t) => t.progress >= 100 || t.status === 'done');
     const todayDone = done.filter((t) => t.updated_at >= todayStart);
     const weekDone = done.filter((t) => t.updated_at >= weekStart.getTime());
     const monthDone = done.filter((t) => t.updated_at >= monthStart.getTime());
 
     const priorityDist = [
-      { name: 'P1', value: tasks.filter((t) => t.priority === 1).length, color: '#ef4444' },
-      { name: 'P2', value: tasks.filter((t) => t.priority === 2).length, color: '#f97316' },
-      { name: 'P3', value: tasks.filter((t) => t.priority === 3).length, color: '#3b82f6' },
-      { name: 'P4', value: tasks.filter((t) => t.priority === 4).length, color: '#9ca3af' },
+      { name: getPriorityLabel(Priority.P1), value: tasks.filter((t) => t.priority === 1).length, color: '#ef4444' },
+      { name: getPriorityLabel(Priority.P2), value: tasks.filter((t) => t.priority === 2).length, color: '#f97316' },
+      { name: getPriorityLabel(Priority.P3), value: tasks.filter((t) => t.priority === 3).length, color: '#3b82f6' },
+      { name: getPriorityLabel(Priority.P4), value: tasks.filter((t) => t.priority === 4).length, color: '#9ca3af' },
     ];
 
     const statusDist = [
-      { name: '待开始', value: tasks.filter((t) => t.status === 'todo').length, color: '#9ca3af' },
-      { name: '进行中', value: tasks.filter((t) => t.status === 'in_progress').length, color: '#3b82f6' },
-      { name: '暂停', value: tasks.filter((t) => t.status === 'paused').length, color: '#f97316' },
-      { name: '已完成', value: tasks.filter((t) => t.status === 'done').length, color: '#10b981' },
-      { name: '已取消', value: tasks.filter((t) => t.status === 'cancelled').length, color: '#6b7280' },
+      { name: '待开始', value: tasks.filter((t) => t.progress === 0 && t.status !== 'cancelled').length, color: '#9ca3af' },
+      { name: '进行中', value: tasks.filter((t) => t.progress > 0 && t.progress < 100 && t.status !== 'cancelled').length, color: '#3b82f6' },
+      { name: '已完成', value: tasks.filter((t) => t.progress >= 100 || t.status === 'done').length, color: '#10b981' },
+      { name: '已归档', value: tasks.filter((t) => t.status === 'cancelled').length, color: '#6b7280' },
     ];
 
     // Category distribution
@@ -58,8 +72,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       return { name: `周${weekDays[i]}`, value: count };
     });
 
-    const totalPomodoros = tasks.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
-    const donePomodoros = done.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
+    // Use actual pomodoro history from localStorage, not estimated
+    const pomodoroHistory = loadPomodoroHistory();
+    const totalCompletedPomodoros = pomodoroHistory.length;
+    const totalFocusMinutes = pomodoroHistory.reduce((sum, r) => sum + r.duration, 0);
+    const estimatedPomodoros = tasks.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
 
     return {
       total: tasks.length,
@@ -67,8 +84,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       todayDone: todayDone.length,
       weekDone: weekDone.length,
       monthDone: monthDone.length,
-      totalPomodoros,
-      donePomodoros,
+      totalPomodoros: totalCompletedPomodoros,
+      donePomodoros: totalCompletedPomodoros,
+      totalFocusMinutes,
       completionRate: tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 0,
       priorityDist,
       statusDist,
@@ -78,7 +96,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   }, [tasks, categories]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 overflow-y-auto absolute inset-0">
       <h2 className="text-lg font-semibold text-foreground">数据统计</h2>
 
       {/* Summary Cards */}
@@ -100,8 +118,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
         {[
           { label: '任务总数', value: stats.total },
           { label: '完成率', value: `${stats.completionRate}%` },
-          { label: '累计番茄', value: `${stats.donePomodoros}/${stats.totalPomodoros}` },
-          { label: '专注时长', value: `${stats.donePomodoros * 25}分钟` },
+          { label: '累计番茄', value: stats.totalPomodoros },
+          { label: '专注时长', value: `${stats.totalFocusMinutes}分钟` },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-border bg-card p-4">
             <div className="text-2xl font-bold text-foreground">{s.value}</div>

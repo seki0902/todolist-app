@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
 import { Plus, Trash2, Download, Upload, Play, Database, HardDrive } from 'lucide-react';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTaskStore } from '../../store/useTaskStore';
-import type { TemplateRow } from '../../shared/types/database';
+import type { TemplateRow, PriorityStyle } from '../../shared/types/database';
+import { getStoredPriorityStyle, setStoredPriorityStyle, getPriorityLabel, Priority } from '../../shared/types/database';
 
 const api = (window as any).api;
 
@@ -18,23 +20,64 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
   const { categories, loadCategories, createCategory, deleteCategory } = useCategoryStore();
   const { tasks, loadTasks } = useTaskStore();
   const [newCatName, setNewCatName] = useState('');
-  const [tab, setTab] = useState<'categories' | 'templates' | 'data'>('categories');
+  const [catSubmitting, setCatSubmitting] = useState(false);
+  const [tab, setTab] = useState<'categories' | 'templates' | 'preferences' | 'data'>('categories');
+  const [priorityStyle, setPriorityStyle] = useState<PriorityStyle>(getStoredPriorityStyle());
 
   // Templates state
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [newTplName, setNewTplName] = useState('');
   const [newTplDesc, setNewTplDesc] = useState('');
-  const [newTplSteps, setNewTplSteps] = useState<string[]>([]);
-  const [stepInput, setStepInput] = useState('');
+  const [newTplCategoryId, setNewTplCategoryId] = useState('');
+  const [newTplSteps, setNewTplSteps] = useState<{ title: string; default_priority: number }[]>([]);
 
   const addStep = () => {
-    if (!stepInput.trim()) return;
-    setNewTplSteps([...newTplSteps, stepInput.trim()]);
-    setStepInput('');
+    setNewTplSteps([...newTplSteps, { title: '', default_priority: 3 }]);
+  };
+
+  const updateStepTitle = (idx: number, title: string) => {
+    const steps = [...newTplSteps];
+    steps[idx] = { ...steps[idx], title };
+    setNewTplSteps(steps);
   };
 
   const removeStep = (idx: number) => {
     setNewTplSteps(newTplSteps.filter((_, i) => i !== idx));
+  };
+
+  const updateStepPriority = (idx: number, priority: number) => {
+    const steps = [...newTplSteps];
+    steps[idx] = { ...steps[idx], default_priority: priority };
+    setNewTplSteps(steps);
+  };
+
+  // HTML5 drag and drop for step reorder (using ref to avoid stale state)
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const dragIdxRef = useRef<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    setDragIdx(idx);
+    dragIdxRef.current = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const fromIdx = dragIdxRef.current;
+    if (fromIdx === null || fromIdx === idx) return;
+    const steps = [...newTplSteps];
+    const [moved] = steps.splice(fromIdx, 1);
+    steps.splice(idx, 0, moved);
+    setNewTplSteps(steps);
+    dragIdxRef.current = idx;
+    setDragIdx(idx);
+  };
+
+  const handleDragEnd = () => {
+    setDragIdx(null);
+    dragIdxRef.current = null;
   };
 
   useEffect(() => {
@@ -51,26 +94,36 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
   };
 
   const handleAddCategory = async () => {
-    if (!newCatName.trim()) return;
-    await createCategory({ name: newCatName.trim() });
-    setNewCatName('');
+    if (!newCatName.trim() || catSubmitting) return;
+    setCatSubmitting(true);
+    try {
+      await createCategory({ name: newCatName.trim() });
+      setNewCatName('');
+    } finally {
+      setCatSubmitting(false);
+    }
   };
 
   const handleCreateTemplate = async () => {
     if (!newTplName.trim()) return;
-    const steps = newTplSteps.map((title, i) => ({
-      title,
+    const steps = newTplSteps.map((step, i) => ({
+      title: step.title,
       sort: i + 1,
-      default_priority: 3,
+      default_priority: step.default_priority,
       default_pomodoro: 1,
     }));
+    // Store category_id in description as JSON meta
+    const meta = newTplCategoryId ? JSON.stringify({ category_id: newTplCategoryId }) : null;
+    const desc = newTplDesc.trim() || null;
+    const combinedDesc = [desc, meta].filter(Boolean).join('\n') || null;
     await api.db.createTemplate({
       name: newTplName.trim(),
-      description: newTplDesc.trim() || null,
+      description: combinedDesc,
       steps: steps.length > 0 ? steps : undefined,
     });
     setNewTplName('');
     setNewTplDesc('');
+    setNewTplCategoryId('');
     setNewTplSteps([]);
     loadTemplates();
   };
@@ -137,7 +190,7 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
   return (
     <Dialog open={open} onClose={onClose} title="管理">
       <div className="flex gap-2 mb-4">
-        {(['categories', 'templates', 'data'] as const).map((t) => (
+        {(['categories', 'templates', 'preferences', 'data'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -145,7 +198,7 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
               tab === t ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
             }`}
           >
-            {t === 'categories' ? '分类' : t === 'templates' ? '模板' : '数据'}
+            {t === 'categories' ? '分类' : t === 'templates' ? '模板' : t === 'preferences' ? '偏好' : '数据'}
           </button>
         ))}
       </div>
@@ -177,32 +230,78 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
           <div className="flex flex-col gap-2">
             <Input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder="模板名称（如：短视频制作）" />
             <Input value={newTplDesc} onChange={(e) => setNewTplDesc(e.target.value)} placeholder="描述（可选）" />
-            {/* Steps management */}
+            {/* Category selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">分类</label>
+              <select
+                value={newTplCategoryId}
+                onChange={(e) => setNewTplCategoryId(e.target.value)}
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">无分类</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* Steps management — vertical card layout with drag reorder */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">步骤（如：选题、写口播稿、剪辑...）</p>
-              <div className="flex gap-1 mb-1.5">
-                <Input
-                  value={stepInput}
-                  onChange={(e) => setStepInput(e.target.value)}
-                  placeholder="输入步骤名称..."
-                  className="flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && addStep()}
-                />
-                <Button onClick={addStep} size="sm" disabled={!stepInput.trim()}><Plus className="h-3 w-3" /></Button>
-              </div>
-              {newTplSteps.length > 0 && (
-                <div className="space-y-1 mb-2">
-                  {newTplSteps.map((step, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">
-                      <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
-                      <span className="flex-1">{step}</span>
-                      <button onClick={() => removeStep(idx)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">步骤列表（拖动 ⠿ 排序 · 直接编辑）</p>
+              <div className="space-y-2 mb-2">
+                {newTplSteps.map((step, idx) => (
+                  <div
+                    key={idx}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                      dragIdx === idx
+                        ? 'border-primary bg-primary/5 shadow-md scale-[1.02]'
+                        : 'border-border hover:border-muted-foreground/30 bg-card'
+                    }`}
+                  >
+                    {/* Drag handle */}
+                    <span className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground flex-shrink-0 select-none mt-1">⠿</span>
+                    {/* Step number + content */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2">
+                        {/* Large step number */}
+                        <span className="text-base font-bold text-primary flex-shrink-0">{idx + 1}.</span>
+                        {/* Title input */}
+                        <input
+                          value={step.title}
+                          onChange={(e) => updateStepTitle(idx, e.target.value)}
+                          placeholder={`输入步骤 ${idx + 1} 名称...`}
+                          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none border-b border-transparent focus:border-primary/30 pb-0.5"
+                          autoFocus={step.title === ''}
+                        />
+                        {/* Delete */}
+                        <button onClick={() => removeStep(idx)} className="text-muted-foreground hover:text-destructive flex-shrink-0 p-1 rounded hover:bg-destructive/10">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      {/* Priority row */}
+                      <div className="flex items-center gap-2 ml-6">
+                        <span className="text-[10px] text-muted-foreground">优先级:</span>
+                        <select
+                          value={step.default_priority}
+                          onChange={(e) => updateStepPriority(idx, Number(e.target.value))}
+                          className="text-xs rounded-md border border-border bg-background px-2 py-1 flex-shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          {[Priority.P1, Priority.P2, Priority.P3, Priority.P4].map((p) => (
+                            <option key={p} value={p}>{getPriorityLabel(p)}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
+              {/* Add step button */}
+              <Button onClick={addStep} variant="outline" size="sm" className="w-full">
+                <Plus className="h-3 w-3" /> 添加步骤
+              </Button>
             </div>
             <Button onClick={handleCreateTemplate} size="sm"><Plus className="h-3 w-3" /> 创建模板</Button>
           </div>
@@ -227,6 +326,40 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      ) : tab === 'preferences' ? (
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">🎨 偏好设置</h3>
+          <p className="text-xs text-muted-foreground">自定义 FocusFlow 的显示风格，即时生效。</p>
+
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            <p className="text-sm font-medium text-foreground">优先级标签风格</p>
+            <Select
+              value={priorityStyle}
+              onChange={(v) => {
+                const style = v as PriorityStyle;
+                setPriorityStyle(style);
+                setStoredPriorityStyle(style);
+              }}
+              options={[
+                { value: 'clean', label: '简洁 — 非常紧急 / 紧急 / 一般 / 不着急' },
+                { value: 'funny', label: '幽默 — 🔥火烧眉毛 / ⚡有点着急 / 📋悠着来 / 🧘随缘吧' },
+              ]}
+            />
+            <div className="flex items-center gap-2 flex-wrap pt-2">
+              <span className="text-xs text-muted-foreground">预览：</span>
+              {[Priority.P1, Priority.P2, Priority.P3, Priority.P4].map((p) => (
+                <span key={p} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  p === Priority.P1 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
+                  p === Priority.P2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
+                  p === Priority.P3 ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
+                  'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  {getPriorityLabel(p, priorityStyle)}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       ) : (

@@ -24,7 +24,7 @@ export const DayStrip: React.FC<DayStripProps> = ({ tasks }) => {
         t.due_time &&
         t.due_time >= todayStart.getTime() &&
         t.due_time <= todayEnd.getTime() &&
-        t.status !== 'done' &&
+        t.progress < 100 &&
         t.status !== 'cancelled'
     );
   }, [tasks]);
@@ -32,7 +32,7 @@ export const DayStrip: React.FC<DayStripProps> = ({ tasks }) => {
   const doneToday = useMemo(
     () =>
       tasks.filter((t) => {
-        if (t.status !== 'done') return false;
+        if (t.progress < 100 && t.status !== 'done') return false;
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         return t.updated_at >= todayStart.getTime();

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, Tray, Menu, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -32,6 +32,8 @@ import { registerBackupIpcHandlers } from '../ipc/backup.ipc';
 import { registerStickyIpcHandlers, createStickyWindow } from '../services/sticky.service';
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 const gotTheLock = app.requestSingleInstanceLock();
 startupLog(`requestSingleInstanceLock: ${gotTheLock}`);
@@ -72,17 +74,40 @@ if (!gotTheLock) { startupLog('Another instance running, quitting'); app.quit();
       app.quit();
     }
   });
-  app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-  app.on('before-quit', () => { stopReminderService(); stopRecurrenceService(); closeDatabase(); });
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  app.on('window-all-closed', () => {
+    // Don't quit — keep running in tray
+  });
+  app.on('before-quit', () => {
+    isQuitting = true;
+    if (tray) { tray.destroy(); tray = null; }
+    stopReminderService();
+    stopRecurrenceService();
+    closeDatabase();
+  });
+  app.on('activate', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
 }
 
 function createWindow() {
+  // Resolve icon path (works in both dev and production)
+  const iconPath = path.join(app.getAppPath(), 'build-resources', 'icon.png');
+  let appIcon: Electron.NativeImage | undefined;
+  try {
+    appIcon = nativeImage.createFromPath(iconPath);
+  } catch { /* icon not found, use default */ }
+
   mainWindow = new BrowserWindow({
     width: 1200, height: 800, minWidth: 800, minHeight: 600,
     frame: false,
     titleBarStyle: 'hidden',
     title: 'FocusFlow Desktop',
+    icon: appIcon,
     webPreferences: { preload: path.join(__dirname, '../preload/preload.js'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
 
@@ -106,11 +131,63 @@ function createWindow() {
   mainWindow.on('maximize', () => { mainWindow?.webContents.send('win:maximizeChange', true); });
   mainWindow.on('unmaximize', () => { mainWindow?.webContents.send('win:maximizeChange', false); });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  // Capture renderer console for debugging
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const prefix = level === 3 ? '[RENDERER ERROR]' : level === 2 ? '[RENDERER WARN]' : '[RENDERER LOG]';
+    console.log(`${prefix} ${message} (${sourceId}:${line})`);
+  });
+
+  // Try multiple ways to get the dev server URL
+  const devUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL || '';
+  console.log(`[MAIN] VITE_DEV_SERVER_URL=${process.env.VITE_DEV_SERVER_URL || '(unset)'}`);
+  console.log(`[MAIN] ELECTRON_RENDERER_URL=${process.env.ELECTRON_RENDERER_URL || '(unset)'}`);
+  if (devUrl) {
+    console.log(`[MAIN] Loading dev URL: ${devUrl}`);
+    mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
+    console.log('[MAIN] Loading production file');
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[MAIN] Renderer finished loading');
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.log(`[MAIN] Renderer FAILED to load: ${errorCode} - ${errorDescription}`);
+  });
+
+  // Create system tray
+  if (appIcon) {
+    try {
+      tray = new Tray(appIcon.resize({ width: 16, height: 16 }));
+      tray.setToolTip('FocusFlow Desktop');
+      const contextMenu = Menu.buildFromTemplate([
+        { label: '显示窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+        { type: 'separator' },
+        {
+          label: '退出 FocusFlow',
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
+      ]);
+      tray.setContextMenu(contextMenu);
+      tray.on('double-click', () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      });
+    } catch { /* tray creation may fail on some systems */ }
+  }
+
+  // Close to tray instead of quitting
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   return mainWindow;
 }
