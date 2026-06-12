@@ -149,7 +149,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     });
 
     return buildTree(result);
-  }, [tasks, categoryId, statusFilter, search]);
+  }, [tasks, categoryId, search]);
 
   // Build depth map and next-step map for TaskItem
   const { depthMap, nextStepIds } = useMemo(() => {
