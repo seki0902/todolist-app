@@ -1,0 +1,163 @@
+<h2>AI 智能拆分 — 修订方案</h2>
+<p class="subtitle">AI 解析后，直接打开现有的「编辑任务」对话框，逐个确认</p>
+
+<div class="section">
+  <h3>📍 第1步：智能输入栏（不变）</h3>
+  <div class="mockup">
+    <div class="mockup-header">TaskList 顶部</div>
+    <div class="mockup-body" style="font-family: system-ui, sans-serif;">
+      <div style="background:linear-gradient(135deg, #eff6ff 0%, #faf5ff 100%);border:2px dashed #c4b5fd;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">🤖</span>
+        <input placeholder="用自然语言描述你要做的事，AI 自动拆分..." style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:#374151;">
+        <span style="background:#8b5cf6;color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;white-space:nowrap;">智能解析</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📝 第2步：直接打开现有编辑表单，逐个确认</h3>
+  <p class="subtitle">AI 解析出 3 个任务 → 自动弹出第 1 个的编辑框，保存后自动弹出下一个</p>
+
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">第 1 个任务 — 编辑中 (1/3)</div>
+      <div class="mockup-body" style="font-family: system-ui, sans-serif;font-size:12px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 10px;margin-bottom:10px;font-size:11px;">
+          🤖 AI 识别：<b>每天</b>做视频 → 已自动填写「重复：每天」
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">任务名称 *</div>
+          <input value="做视频" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">描述</div>
+          <textarea rows="2" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:none;outline:none;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;color:#6b7280;">优先级</div>
+            <select style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+              <option>P3 🔵</option><option>P1 🔴</option><option>P2 🟠</option><option>P4 ⚪</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;color:#6b7280;">状态</div>
+            <select style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+              <option>待开始</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;">分类</div>
+          <select style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+            <option>无分类</option><option>工作</option><option>学习</option><option>生活</option><option>项目</option>
+          </select>
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;">截止日期</div>
+          <input type="datetime-local" value="2026-06-11T23:59" style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;">🔁 重复</div>
+          <div style="display:flex;gap:4px;">
+            <span style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid #d1d5db;">不重复</span>
+            <span style="padding:2px 8px;font-size:10px;border-radius:4px;background:#8b5cf6;color:#fff;">每天</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;border-top:1px solid #f3f4f6;padding-top:10px;">
+          <span style="font-size:11px;color:#6b7280;margin-right:auto;line-height:28px;">AI 解析 · 第 1/3 个</span>
+          <span style="padding:4px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:11px;cursor:pointer;">跳过</span>
+          <span style="padding:4px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:11px;cursor:pointer;">全部跳过</span>
+          <span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">保存 → 下一个</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mockup">
+      <div class="mockup-header">第 2 个任务 — 编辑中 (2/3)</div>
+      <div class="mockup-body" style="font-family: system-ui, sans-serif;font-size:12px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 10px;margin-bottom:10px;font-size:11px;">
+          🤖 AI 识别：<b>每周一下午3点</b>开会 → 已自动填写「每周 周一 15:00」
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">任务名称 *</div>
+          <input value="开会" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;">
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;margin-bottom:2px;">描述</div>
+          <textarea rows="2" style="width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:none;outline:none;" placeholder="AI 未识别到描述"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;color:#6b7280;">优先级</div>
+            <select style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+              <option>P3 🔵</option><option selected>P2 🟠</option><option>P1 🔴</option><option>P4 ⚪</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:11px;color:#6b7280;">状态</div>
+            <select style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+              <option>待开始</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;">截止日期</div>
+          <input type="datetime-local" value="2026-06-15T15:00" style="width:100%;padding:4px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;">
+        </div>
+        <div style="margin-bottom:6px;">
+          <div style="font-size:11px;color:#6b7280;">🔁 重复</div>
+          <div style="display:flex;gap:4px;">
+            <span style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid #d1d5db;">不重复</span>
+            <span style="padding:2px 8px;font-size:10px;border-radius:4px;background:#8b5cf6;color:#fff;">每周</span>
+          </div>
+          <div style="display:flex;gap:2px;margin-top:3px;">
+            <span style="padding:1px 5px;border-radius:10px;font-size:9px;border:1px solid #d1d5db;">周一</span>
+            <span style="padding:1px 5px;border-radius:10px;font-size:9px;background:#8b5cf6;color:#fff;">周一</span>
+            <span style="padding:1px 5px;border-radius:10px;font-size:9px;border:1px solid #d1d5db;">周二</span>
+            <span style="padding:1px 5px;border-radius:10px;font-size:9px;border:1px solid #d1d5db;">周三</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;border-top:1px solid #f3f4f6;padding-top:10px;">
+          <span style="font-size:11px;color:#6b7280;margin-right:auto;line-height:28px;">AI 解析 · 第 2/3 个</span>
+          <span style="padding:4px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:11px;cursor:pointer;">跳过</span>
+          <span style="padding:4px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:11px;cursor:pointer;">全部跳过</span>
+          <span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">保存 → 下一个</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🔄 流程总结</h3>
+  <div style="display:flex;align-items:center;gap:12px;padding:16px;background:#f9fafb;border-radius:12px;font-size:13px;flex-wrap:wrap;justify-content:center;">
+    <span style="background:#8b5cf6;color:#fff;padding:6px 12px;border-radius:6px;">输入自然语言</span>
+    <span style="color:#9ca3af;">→</span>
+    <span style="background:#3b82f6;color:#fff;padding:6px 12px;border-radius:6px;">AI 解析出 N 个任务</span>
+    <span style="color:#9ca3af;">→</span>
+    <span style="background:#10b981;color:#fff;padding:6px 12px;border-radius:6px;">逐个弹出编辑框</span>
+    <span style="color:#9ca3af;">→</span>
+    <span style="background:#f59e0b;color:#fff;padding:6px 12px;border-radius:6px;">用户修改/跳过/保存</span>
+    <span style="color:#9ca3af;">→</span>
+    <span style="background:#ef4444;color:#fff;padding:6px 12px;border-radius:6px;">全部确认后创建</span>
+  </div>
+  <p style="margin-top:12px;font-size:12px;color:#6b7280;text-align:center;">
+    编辑框就是现有的 TaskForm（任务名称/描述/优先级/状态/分类/截止日期/重复/提醒/番茄钟），不做新的 UI。<br>
+    AI 只负责预填字段，所有字段用户都能改。
+  </p>
+</div>
+
+<div class="pros-cons">
+  <div class="pros"><h4>✅ 优点</h4><ul>
+    <li>零新 UI 成本 — 完全复用现有 TaskForm</li>
+    <li>用户能看到并修改每个字段，不会漏信息</li>
+    <li>AI 填错了直接改，和手动建任务体验一致</li>
+    <li>实现简单 — 只改了数据流，不改表单结构</li>
+  </ul></div>
+  <div class="cons"><h4>⚠️ 注意</h4><ul>
+    <li>解析出 5+ 个任务时要逐个确认，可能有点繁琐</li>
+    <li>需要「全部跳过」按钮让用户快速退出</li>
+  </ul></div>
+</div>

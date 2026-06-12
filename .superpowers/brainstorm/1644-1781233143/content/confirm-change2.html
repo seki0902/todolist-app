@@ -1,0 +1,49 @@
+<h2>你的草图 — 改动 2：模板步骤 UI</h2>
+<p class="subtitle">我先看图理解你的意图，然后下面写我的解读，你确认对不对</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">📱 你的手绘草图</div>
+    <div class="mockup-body" style="padding:12px;text-align:center">
+      <img src="改动2.jpg" style="max-width:100%;max-height:70vh;border-radius:12px" />
+    </div>
+  </div>
+  <div>
+    <div class="mockup" style="margin-bottom:16px">
+      <div class="mockup-header">🤔 我的理解 — 你说的 "1.xxx (换行) 2. 输入步骤名称"</div>
+      <div class="mockup-body" style="padding:16px">
+        <p style="font-size:13px;color:#888;margin-bottom:8px">步骤列表（输入时每行一个，序号自动生成）</p>
+        <div style="border:2px dashed #a78bfa;border-radius:12px;padding:12px;background:#faf5ff">
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+            <span style="font-size:16px;color:#7c3aed;font-weight:700;line-height:2">1.</span>
+            <input class="mock-input" value="选题" style="flex:1;font-size:13px" readonly />
+            <span style="color:#ccc;cursor:pointer">✕</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+            <span style="font-size:16px;color:#7c3aed;font-weight:700;line-height:2">2.</span>
+            <input class="mock-input" value="写口播稿" style="flex:1;font-size:13px" readonly />
+            <span style="color:#ccc;cursor:pointer">✕</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
+            <span style="font-size:16px;color:#7c3aed;font-weight:700;line-height:2">3.</span>
+            <input class="mock-input" placeholder="输入步骤名称..." style="flex:1;font-size:13px" readonly />
+            <span style="color:#ccc;cursor:pointer">✕</span>
+          </div>
+        </div>
+        <p style="font-size:11px;color:#7c3aed;margin-top:8px">💡 核心：每个步骤占一行，前面有序号，直接在步骤名旁边编辑，不是上面一个textarea下面解析</p>
+      </div>
+    </div>
+
+    <div class="mockup">
+      <div class="mockup-header">❓ 关键问题想确认</div>
+      <div class="mockup-body" style="padding:16px">
+        <ol style="font-size:13px;line-height:2;padding-left:20px">
+          <li>步骤输入框是 <strong>实时编辑</strong> 的（每行一个input），不是先在一个大框粘贴再解析，对吗？</li>
+          <li>序号 <strong>自动维护</strong>，增删步骤后自动重新编号 1. 2. 3.？</li>
+          <li>每行末尾有 <strong>删除按钮 ✕</strong>？</li>
+          <li>需要加 <strong>+ 按钮在底部</strong> 来新增空行？</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,140 @@
+<h2>AI 智能拆分 — 交互流程设计</h2>
+<p class="subtitle">任务列表顶部新增智能输入栏，输入后弹出预览对话框供确认/修改</p>
+
+<div class="section">
+  <h3>📍 位置：任务列表顶部工具栏下方</h3>
+  <div class="mockup">
+    <div class="mockup-header">TaskList 顶部区域</div>
+    <div class="mockup-body" style="font-family: system-ui, sans-serif;">
+      <!-- Header bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e5e7eb;margin-bottom:12px;">
+        <div>
+          <div style="font-weight:600;font-size:15px;">任务列表</div>
+          <div style="font-size:12px;color:#6b7280;">12 个任务 · 5 待办 · 3 进行中 · 4 已完成</div>
+        </div>
+        <div style="background:#3b82f6;color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;">+ 新建任务</div>
+      </div>
+
+      <!-- AI Smart Input Bar -->
+      <div style="background:linear-gradient(135deg, #eff6ff 0%, #faf5ff 100%);border:2px dashed #c4b5fd;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:18px;">🤖</span>
+        <input placeholder="用自然语言描述你要做的事，AI 自动拆分..." style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:#374151;">
+        <span style="background:#8b5cf6;color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;white-space:nowrap;">智能解析</span>
+      </div>
+
+      <!-- Quick hints -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="font-size:11px;padding:2px 8px;background:#f3f4f6;border-radius:10px;color:#6b7280;">试试：每天健身30分钟</span>
+        <span style="font-size:11px;padding:2px 8px;background:#f3f4f6;border-radius:10px;color:#6b7280;">每周一下午3点开会</span>
+        <span style="font-size:11px;padding:2px 8px;background:#f3f4f6;border-radius:10px;color:#6b7280;">每月1号交房租 每月15号发工资</span>
+      </div>
+
+      <!-- Existing toolbar -->
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #f3f4f6;">
+        <div style="border:1px solid #d1d5db;border-radius:6px;padding:4px 10px;font-size:12px;display:flex;align-items:center;gap:4px;">
+          <span>🔍</span><input placeholder="搜索任务..." style="border:none;outline:none;font-size:12px;width:140px;">
+        </div>
+        <span style="font-size:12px;color:#6b7280;background:#f3f4f6;padding:4px 8px;border-radius:4px;">全部状态 ▾</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>📋 预览确认对话框 — 用户可修改后批量创建</h3>
+  <div class="mockup">
+    <div class="mockup-header">AI 解析预览</div>
+    <div class="mockup-body" style="font-family: system-ui, sans-serif;">
+
+      <!-- Input echo -->
+      <div style="background:#f9fafb;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:12px;color:#6b7280;">
+        输入：<span style="color:#374151;">"我每天都要做视频，每周一下午3点开会，每月1号交房租"</span>
+        <span style="float:right;color:#8b5cf6;">3 个任务</span>
+      </div>
+
+      <!-- Task 1 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:8px;background:#fff;">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <span style="color:#8b5cf6;font-size:14px;margin-top:6px;">🔵</span>
+          <div style="flex:1;">
+            <input value="做视频" style="border:none;font-size:14px;font-weight:600;width:100%;outline:none;padding:2px 4px;background:#f9fafb;border-radius:4px;">
+            <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;align-items:center;">
+              <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;">P3</span>
+              <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;">待开始</span>
+              <span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:4px;">🔁 每天</span>
+              <span style="font-size:11px;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:4px;">⏰ 截止 23:59</span>
+              <span style="color:#9ca3af;font-size:11px;margin-left:auto;">✏️ 可编辑</span>
+            </div>
+          </div>
+          <span style="color:#d1d5db;cursor:pointer;font-size:18px;">✕</span>
+        </div>
+      </div>
+
+      <!-- Task 2 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:8px;background:#fff;">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <span style="color:#8b5cf6;font-size:14px;margin-top:6px;">🔵</span>
+          <div style="flex:1;">
+            <input value="开会" style="border:none;font-size:14px;font-weight:600;width:100%;outline:none;padding:2px 4px;background:#f9fafb;border-radius:4px;">
+            <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;align-items:center;">
+              <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;">P2 ⬆</span>
+              <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;">待开始</span>
+              <span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:4px;">🔁 每周 周一</span>
+              <span style="font-size:11px;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:4px;">⏰ 周一 15:00</span>
+              <span style="color:#9ca3af;font-size:11px;margin-left:auto;">✏️ 可编辑</span>
+            </div>
+          </div>
+          <span style="color:#d1d5db;cursor:pointer;font-size:18px;">✕</span>
+        </div>
+      </div>
+
+      <!-- Task 3 -->
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:12px;background:#fff;">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <span style="color:#8b5cf6;font-size:14px;margin-top:6px;">🔵</span>
+          <div style="flex:1;">
+            <input value="交房租" style="border:none;font-size:14px;font-weight:600;width:100%;outline:none;padding:2px 4px;background:#f9fafb;border-radius:4px;">
+            <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;align-items:center;">
+              <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;">P2 ⬆</span>
+              <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;">待开始</span>
+              <span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:4px;">🔁 每月 1号</span>
+              <span style="font-size:11px;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:4px;">⏰ 每月1号</span>
+              <span style="color:#9ca3af;font-size:11px;margin-left:auto;">✏️ 可编辑</span>
+            </div>
+          </div>
+          <span style="color:#d1d5db;cursor:pointer;font-size:18px;">✕</span>
+        </div>
+      </div>
+
+      <!-- Bottom actions -->
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;color:#6b7280;">
+          <span style="cursor:pointer;color:#8b5cf6;">+ 手动添加一行</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <span style="padding:6px 16px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;cursor:pointer;">取消</span>
+          <span style="background:#8b5cf6;color:#fff;padding:6px 16px;border-radius:8px;font-size:13px;cursor:pointer;">确认创建 3 个任务</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>⚙️ 内部工作机制</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-body">
+        <h3>第一层：规则引擎</h3>
+        <p>正则匹配常见中文时间表达（每天、每周X、每月X号），直接转成 recurrence 字段。覆盖 80% 场景，瞬间响应。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>第二层：Ollama 增强</h3>
+        <p>规则引擎处理不了的复杂句子，检测本地 Ollama 是否在运行，是则发给小模型做语义理解。没有 Ollama 就跳过，不影响基本使用。</p>
+      </div>
+    </div>
+  </div>
+</div>

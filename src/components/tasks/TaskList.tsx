@@ -21,19 +21,23 @@ interface TaskListProps {
 }
 
 function buildTree(tasks: TaskRow[]): TaskRow[] {
-  // Sort non-done by priority first, then done tasks to the bottom
+  // Sort: active tasks by priority, then completed/cancelled sink to bottom
   const sorted = [...tasks].sort((a, b) => {
     // Different parents → don't reorder across trees (parent order matters for nesting)
     if (a.parent_id !== b.parent_id) return 0;
-    // Done tasks go last
-    const aDone = a.status === 'done' ? 1 : 0;
-    const bDone = b.status === 'done' ? 1 : 0;
-    if (aDone !== bDone) return aDone - bDone;
-    // Cancelled also at bottom (but above done)
+
+    // Determine "completed" status: status='done' OR progress>=100 OR status='cancelled'
+    const aCompleted = (a.status === 'done' || a.progress >= 100 || a.status === 'cancelled') ? 1 : 0;
+    const bCompleted = (b.status === 'done' || b.progress >= 100 || b.status === 'cancelled') ? 1 : 0;
+    // Completed tasks always sink to bottom
+    if (aCompleted !== bCompleted) return aCompleted - bCompleted;
+
+    // Among completed tasks: cancelled below done
     const aCancelled = a.status === 'cancelled' ? 1 : 0;
     const bCancelled = b.status === 'cancelled' ? 1 : 0;
     if (aCancelled !== bCancelled) return aCancelled - bCancelled;
-    // Within same status group, sort by priority then sort order
+
+    // Among active tasks, sort by priority then sort order
     const pa = PRIORITY_ORDER[a.priority] ?? 99;
     const pb = PRIORITY_ORDER[b.priority] ?? 99;
     if (pa !== pb) return pa - pb;

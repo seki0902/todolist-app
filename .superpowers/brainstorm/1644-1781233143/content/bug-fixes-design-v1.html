@@ -1,0 +1,214 @@
+<h2>🔧 FocusFlow Bug 修复 — 设计草图 v1</h2>
+<p class="subtitle">请逐个看每个改动，点击你觉得 OK 的选项，告诉我哪里需要调整</p>
+
+<div class="section">
+  <h3>改动 1️⃣：优先级命名 — 从 P1/P2/P3/P4 改为中文</h3>
+  <p class="subtitle">用户反馈：P0/P1 对大众不友好。下面两个方案，你更喜欢哪个？</p>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="priority-funny" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>幽默风 🎭</h3>
+      <p>
+        <span style="display:inline-block;background:#ef4444;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">🔥 火烧眉毛</span>
+        <span style="display:inline-block;background:#f97316;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">⚡ 有点着急</span>
+        <span style="display:inline-block;background:#3b82f6;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">📋 悠着来</span>
+        <span style="display:inline-block;background:#9ca3af;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">🧘 随缘吧</span>
+      </p>
+    </div>
+  </div>
+  <div class="option" data-choice="priority-clean" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>简洁风 📝</h3>
+      <p>
+        <span style="display:inline-block;background:#ef4444;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">🔴 非常紧急</span>
+        <span style="display:inline-block;background:#f97316;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">🟠 紧急</span>
+        <span style="display:inline-block;background:#3b82f6;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">🔵 一般</span>
+        <span style="display:inline-block;background:#9ca3af;color:white;border-radius:999px;padding:2px 10px;font-size:13px;margin:2px">⚪ 不着急</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改动 2️⃣：模板步骤 UI — 支持 "1.xxx" 格式输入</h3>
+  <p class="subtitle">输入步骤时可直接粘贴序号列表，系统自动拆分。输入后变成可拖拽排序的步骤卡片</p>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">旧版 — 只能逐个添加</div>
+    <div class="mockup-body" style="padding:16px">
+      <p style="font-size:12px;color:#888;margin-bottom:8px">步骤（如：选题、写口播稿、剪辑...）</p>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input class="mock-input" value="选题" style="flex:1;font-size:12px" readonly />
+        <button class="mock-button" style="font-size:11px">+</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:4px">
+        <span style="font-size:11px;color:#888">1.</span>
+        <span style="font-size:13px;flex:1">选题</span>
+        <span style="color:#ccc">✕</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px">
+        <span style="font-size:11px;color:#888">2.</span>
+        <span style="font-size:13px;flex:1">写口播稿</span>
+        <span style="color:#ccc">✕</span>
+      </div>
+      <p style="font-size:10px;color:#f97316;margin-top:8px">⚠ 不能拖动排序，不能批量粘贴</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">新版 — 支持粘贴序号列表</div>
+    <div class="mockup-body" style="padding:16px">
+      <p style="font-size:12px;color:#888;margin-bottom:4px">步骤列表（每行一个，序号可选）</p>
+      <textarea class="mock-input" style="width:100%;height:80px;font-size:12px;resize:none;font-family:monospace" readonly>1. 选题
+2. 写口播稿
+3. 拍摄素材
+4. 剪辑发布</textarea>
+      <button class="mock-button" style="font-size:11px;margin-top:6px;width:100%">🔍 解析步骤列表（4个步骤）</button>
+      <p style="font-size:10px;color:#22c55e;margin-top:6px">✅ 解析后步骤卡片支持拖动排序</p>
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid #3b82f6;border-radius:8px;margin-top:4px;background:#eff6ff">
+        <span style="cursor:grab;color:#888">⠿</span>
+        <span style="font-size:11px;color:#888">1.</span>
+        <span style="font-size:13px;flex:1">选题</span>
+        <span style="color:#ccc">✕</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid #e5e7eb;border-radius:8px;margin-top:3px">
+        <span style="cursor:grab;color:#888">⠿</span>
+        <span style="font-size:11px;color:#888">2.</span>
+        <span style="font-size:13px;flex:1">写口播稿</span>
+        <span style="color:#ccc">✕</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改动 3️⃣：父子任务 UI 重新设计 — 让层级关系一目了然</h3>
+  <p class="subtitle">当前只有缩进区分。新设计加入连接线、父任务折叠、子任务数量标签</p>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">旧版 — 仅缩进</div>
+    <div class="mockup-body" style="padding:12px">
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:6px">
+        <span style="font-size:14px;font-weight:600">📹 短视频制作</span>
+        <span style="background:#3b82f6;color:white;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:6px">P3</span>
+        <div style="height:6px;background:#e5e7eb;border-radius:3px;margin-top:8px">
+          <div style="height:6px;width:50%;background:#3b82f6;border-radius:3px"></div>
+        </div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:8px 12px;margin-bottom:4px;margin-left:24px">
+        <span style="font-size:13px">选题</span>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:8px 12px;margin-bottom:4px;margin-left:24px">
+        <span style="font-size:13px">写口播稿</span>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:8px 12px;margin-left:24px">
+        <span style="font-size:13px">剪辑</span>
+      </div>
+      <p style="font-size:10px;color:#f97316;margin-top:8px">⚠ 父子关系全靠缩进，不直观</p>
+      <p style="font-size:10px;color:#f97316">⚠ 父任务无折叠/展开</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">新版 — 连接线 + 折叠 + 统计</div>
+    <div class="mockup-body" style="padding:12px">
+      <div style="border:1px solid #6366f1;border-radius:12px;padding:12px;margin-bottom:2px;background:#faf5ff">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="cursor:pointer;font-size:14px">▼</span>
+          <span style="font-size:14px;font-weight:600;flex:1">📹 短视频制作</span>
+          <span style="background:#e0e7ff;color:#4338ca;border-radius:999px;padding:1px 8px;font-size:10px">3个子任务</span>
+          <span style="background:#3b82f6;color:white;border-radius:4px;padding:1px 6px;font-size:10px">一般</span>
+        </div>
+        <div style="height:6px;background:#e5e7eb;border-radius:3px;margin-top:8px">
+          <div style="height:6px;width:50%;background:#6366f1;border-radius:3px"></div>
+        </div>
+        <span style="font-size:10px;color:#888;margin-top:4px;display:block">2/3 完成</span>
+      </div>
+      <div style="margin-left:20px;border-left:2px solid #c7d2fe;padding-left:12px">
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;margin-bottom:3px;position:relative">
+          <span style="position:absolute;left:-19px;top:8px;font-size:8px;color:#c7d2fe">●</span>
+          <span style="font-size:13px">✅ 选题</span>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;margin-bottom:3px;position:relative">
+          <span style="position:absolute;left:-19px;top:8px;font-size:8px;color:#c7d2fe">●</span>
+          <span style="font-size:13px">写口播稿</span>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;position:relative">
+          <span style="position:absolute;left:-19px;top:8px;font-size:8px;color:#c7d2fe">●</span>
+          <span style="font-size:13px">剪辑</span>
+        </div>
+      </div>
+      <p style="font-size:10px;color:#22c55e;margin-top:8px">✅ 连接线 + 折叠 + 子任务数标签</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改动 4️⃣：去掉"状态"概念，进度条即状态</h3>
+  <p class="subtitle">状态循环按钮（待开始→进行中→完成）改为仅保留进度条拖动。拖动进度条自动将任务标为进行中</p>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">新版 TaskItem — 无状态按钮，进度条即一切</div>
+  <div class="mockup-body" style="padding:12px">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <!-- Drag handle -->
+        <span style="cursor:grab;color:#ccc">⠿</span>
+        <!-- No more status circle! Just a checkbox area for done -->
+        <span style="width:18px;height:18px;border:2px solid #d1d5db;border-radius:50%;flex-shrink:0"></span>
+        <span style="font-size:14px;flex:1">写口播稿</span>
+        <span style="background:#3b82f6;color:white;border-radius:999px;padding:2px 8px;font-size:11px">一般</span>
+        <span style="color:#9ca3af">⏰ 6月15日</span>
+      </div>
+      <!-- Progress bar = status indicator -->
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;cursor:pointer;position:relative">
+          <div style="height:8px;width:35%;background:#3b82f6;border-radius:4px;position:relative">
+            <span style="position:absolute;right:-6px;top:-4px;width:16px;height:16px;background:white;border:2px solid #3b82f6;border-radius:50%;cursor:ew-resize"></span>
+          </div>
+        </div>
+        <span style="font-size:11px;color:#9ca3af;width:30px;text-align:right">35%</span>
+      </div>
+      <p style="font-size:10px;color:#22c55e;margin-top:4px">✅ 拖动到 100% 自动打钩完成，任务变灰沉底</p>
+      <p style="font-size:10px;color:#22c55e">✅ 任何拖动操作自动标记为"进行中"</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改动 5️⃣：已完成任务处理 — 变灰 + 沉底 + 从聚焦模式消失</h3>
+</div>
+
+<div class="mockup">
+  <div class="mockup-body" style="padding:16px">
+    <div style="margin-bottom:12px">
+      <p style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">📋 进行中的任务</p>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;margin-bottom:6px">
+        <span style="font-size:14px">写口播稿</span>
+        <span style="background:#3b82f6;color:white;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:6px">一般</span>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px">
+        <span style="font-size:14px">拍摄素材</span>
+        <span style="background:#f97316;color:white;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:6px">紧急</span>
+      </div>
+    </div>
+    <div style="border-top:1px dashed #d1d5db;padding-top:12px">
+      <p style="font-size:12px;font-weight:600;color:#9ca3af;margin-bottom:6px">✅ 已完成 (自动沉底)</p>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;margin-bottom:6px;background:#f9fafb;opacity:0.6">
+        <span style="font-size:14px;text-decoration:line-through;color:#9ca3af">选题</span>
+        <span style="background:#10b981;color:white;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:6px">✓ 完成</span>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;background:#f9fafb;opacity:0.6">
+        <span style="font-size:14px;text-decoration:line-through;color:#9ca3af">查资料</span>
+        <span style="background:#10b981;color:white;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:6px">✓ 完成</span>
+      </div>
+    </div>
+  </div>
+</div>
