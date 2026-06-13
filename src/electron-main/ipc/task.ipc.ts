@@ -26,6 +26,16 @@ function broadcastSync(
   });
 }
 
+/** Broadcast ancestor tasks whose progress/status changed via recalcParentProgress. */
+function broadcastAncestorUpdates(repo: TaskRepository): void {
+  for (const ancestorId of repo.affectedAncestorIds) {
+    const ancestor = repo.getById(ancestorId);
+    if (ancestor) {
+      broadcastSync('update', [ancestorId], ancestor);
+    }
+  }
+}
+
 export function registerTaskIpcHandlers(repo: TaskRepository): void {
   ipcMain.handle(
     IPC_CHANNELS.TASK.CREATE,
@@ -36,6 +46,7 @@ export function registerTaskIpcHandlers(repo: TaskRepository): void {
         }
         const task = repo.create(input);
         broadcastSync('insert', [task.id], task);
+        broadcastAncestorUpdates(repo);
         return { success: true, data: task };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
@@ -56,6 +67,7 @@ export function registerTaskIpcHandlers(repo: TaskRepository): void {
           return { success: false, error: 'Task not found' };
         }
         broadcastSync('update', [task.id], task);
+        broadcastAncestorUpdates(repo);
         return { success: true, data: task };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
@@ -76,6 +88,7 @@ export function registerTaskIpcHandlers(repo: TaskRepository): void {
           return { success: false, error: 'Task not found' };
         }
         broadcastSync('delete', [id]);
+        broadcastAncestorUpdates(repo);
         return { success: true, data: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';

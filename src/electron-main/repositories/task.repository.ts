@@ -5,6 +5,8 @@ import type { TaskRow, CreateTaskInput, UpdateTaskInput, TaskListFilter } from '
 
 export class TaskRepository {
   private db: Database;
+  /** Accumulates IDs of ancestor tasks updated by recalcParentProgress. */
+  affectedAncestorIds: Set<string> = new Set();
 
   constructor(db: Database) {
     this.db = db;
@@ -51,6 +53,7 @@ export class TaskRepository {
     stmt.free();
 
     // Update parent progress if this is a child task
+    this.affectedAncestorIds = new Set();
     if (input.parent_id) {
       this.recalcParentProgress(input.parent_id);
     }
@@ -103,6 +106,7 @@ export class TaskRepository {
     stmt.free();
 
     // Update parent progress (current or new parent)
+    this.affectedAncestorIds = new Set();
     const updated = this.getById(id)!;
     if (updated.parent_id) {
       this.recalcParentProgress(updated.parent_id);
@@ -117,6 +121,7 @@ export class TaskRepository {
 
   delete(id: string): boolean {
     const task = this.getById(id);
+    this.affectedAncestorIds = new Set();
     const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
     stmt.run([id]);
     const changes = this.db.getRowsModified();
@@ -183,7 +188,14 @@ export class TaskRepository {
 
   // Recalculate parent task progress as average of all child tasks.
   // Also auto-complete parent when all children are done/cancelled.
-  recalcParentProgress(parentId: string): void {
+  // Returns the set of all task IDs that were updated (including ancestors).
+  recalcParentProgress(parentId: string): Set<string> {
+    const updated = new Set<string>();
+    this._recalcParentProgress(parentId, updated);
+    return updated;
+  }
+
+  private _recalcParentProgress(parentId: string, updated: Set<string>): void {
     const children = execQueryAll<TaskRow>(
       this.db,
       'SELECT * FROM tasks WHERE parent_id = ?',
@@ -214,10 +226,12 @@ export class TaskRepository {
       stmt.free();
     }
 
+    updated.add(parentId);
+
     // Recurse up if this parent is also a child of another task
     const parent = this.getById(parentId);
     if (parent?.parent_id) {
-      this.recalcParentProgress(parent.parent_id);
+      this._recalcParentProgress(parent.parent_id, updated);
     }
   }
 }

@@ -133,12 +133,17 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
     loadTemplates();
   };
 
+  const [applyMsg, setApplyMsg] = useState<string | null>(null);
+
   const handleApplyTemplate = async (id: string) => {
-    await api.db.applyTemplate(id);
-    loadTasks();
-    // Notify silently — tasks appear in the list, no jarring alert needed
-    const tpl = templates.find((t) => t.id === id);
-    console.log(`Template "${tpl?.name}" applied successfully`);
+    const res = await api.db.applyTemplate(id);
+    if (res.success && res.data) {
+      loadTasks();
+      const tpl = templates.find((t) => t.id === id);
+      const count = Array.isArray(res.data) ? res.data.length : 0;
+      setApplyMsg(`✅ 模板"${tpl?.name}"已应用，创建了 ${count} 个任务`);
+      setTimeout(() => setApplyMsg(null), 3000);
+    }
   };
 
   const handleExport = () => {
@@ -227,6 +232,12 @@ export const ManageDialog: React.FC<ManageDialogProps> = ({ open, onClose }) => 
         </div>
       ) : tab === 'templates' ? (
         <div className="space-y-3">
+          {/* Success toast */}
+          {applyMsg && (
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 animate-fade-in">
+              {applyMsg}
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Input value={newTplName} onChange={(e) => setNewTplName(e.target.value)} placeholder="模板名称（如：短视频制作）" />
             <Input value={newTplDesc} onChange={(e) => setNewTplDesc(e.target.value)} placeholder="描述（可选）" />

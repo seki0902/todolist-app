@@ -23,8 +23,13 @@ interface TaskListProps {
 function buildTree(tasks: TaskRow[]): TaskRow[] {
   // Sort: active tasks by priority, then completed/cancelled sink to bottom
   const sorted = [...tasks].sort((a, b) => {
-    // Different parents → don't reorder across trees (parent order matters for nesting)
-    if (a.parent_id !== b.parent_id) return 0;
+    // Different parents → sort by parent_id first to keep sibling groups together,
+    // then fall through to normal ordering within the same parent group.
+    if (a.parent_id !== b.parent_id) {
+      const pa = a.parent_id ?? '';
+      const pb = b.parent_id ?? '';
+      if (pa !== pb) return pa < pb ? -1 : 1;
+    }
 
     // Determine "completed" status: status='done' OR progress>=100 OR status='cancelled'
     const aCompleted = (a.status === 'done' || a.progress >= 100 || a.status === 'cancelled') ? 1 : 0;
@@ -84,6 +89,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
   const {
     tasks,
     loading,
+    error,
     loadTasks,
     createTask,
     updateTask,
@@ -104,15 +110,10 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
     loadTags();
   }, []);
 
-  // Reload tasks with tag filter when selection changes
+  // Reload tasks when tag or date filter changes
   useEffect(() => {
     loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined });
-  }, [selectedTagIds]);
-
-  // Reload tasks when date filter changes
-  useEffect(() => {
-    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined });
-  }, [selectedDate]);
+  }, [selectedTagIds, selectedDate]);
 
   // Batch load tags for all visible tasks (replaces per-item N+1 queries)
   useEffect(() => {
@@ -406,6 +407,21 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
           </div>
         )}
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mx-6 mt-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-2.5 flex items-center gap-2">
+          <span className="text-sm text-red-700 dark:text-red-300">
+            ⚠️ 加载失败：{error}
+          </span>
+          <button
+            onClick={() => loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined })}
+            className="ml-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
+          >
+            重试
+          </button>
+        </div>
+      )}
 
       {/* Task List */}
       <div className="flex-1 overflow-y-auto px-6 py-4">

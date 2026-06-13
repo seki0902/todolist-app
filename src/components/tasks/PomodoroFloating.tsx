@@ -7,6 +7,7 @@ export const PomodoroFloating: React.FC = () => {
     isRunning,
     isPaused,
     timeLeft,
+    totalDuration,
     selectedTaskTitle,
     isOpen,
     isMinimized,
@@ -20,7 +21,7 @@ export const PomodoroFloating: React.FC = () => {
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-  const progress = 1 - timeLeft / (usePomodoroStore.getState().totalDuration * 60);
+  const progress = totalDuration > 0 ? 1 - timeLeft / (totalDuration * 60) : 0;
 
   return (
     <div className="mt-auto mx-3 mb-3 rounded-xl border border-primary/30 bg-card/90 backdrop-blur-md p-3 shadow-lg shadow-primary/10">

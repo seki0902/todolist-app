@@ -64,8 +64,9 @@ export function createStickyWindow(): BrowserWindow {
     title: 'FocusFlow 便签',
   });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    stickyWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/sticky`);
+  const devUrl = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL || '';
+  if (devUrl) {
+    stickyWindow.loadURL(`${devUrl}#/sticky`);
   } else {
     stickyWindow.loadFile(
       path.join(__dirname, '../../dist/index.html'),

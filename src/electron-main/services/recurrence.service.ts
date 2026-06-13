@@ -34,11 +34,25 @@ function processRecurringTasks(): void {
 
   for (const task of tasks) {
     const nextDue = getNextDueTime(task.due_time!, task.recurrence_type!, task.recurrence_days);
-    if (!nextDue) continue;
+    if (!nextDue) {
+      // Could not compute next occurrence (e.g. task too far in the past,
+      // invalid recurrence config).  Clear recurrence fields so we stop
+      // re-querying this task every tick.
+      console.warn(
+        `[RecurrenceService] Could not compute next occurrence for task "${task.title}" (id=${task.id}). ` +
+        `Clearing recurrence fields to avoid re-query loop.`
+      );
+      const clearStmt = db.prepare(`
+        UPDATE tasks SET recurrence_type = NULL, recurrence_days = NULL, updated_at = ? WHERE id = ?
+      `);
+      clearStmt.run([now, task.id]);
+      clearStmt.free();
+      continue;
+    }
 
     // Update the due_time to next occurrence
-    // If task was done, reset to todo for the next cycle
-    const newStatus = task.status === 'done' ? 'todo' : task.status;
+    // If task was done or paused, reset to todo for the next cycle
+    const newStatus = (task.status === 'done' || task.status === 'paused') ? 'todo' : task.status;
     const stmt = db.prepare(`
       UPDATE tasks SET due_time = ?, status = ?, updated_at = ? WHERE id = ?
     `);

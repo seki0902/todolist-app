@@ -25,35 +25,29 @@ function checkReminders(): void {
   const db = getDatabase();
   const now = Date.now();
 
-  // Windows to check: 5min, 15min, 30min, 1hour ahead
-  const windows = [5, 15, 30, 60].map((m) => now + m * 60 * 1000);
+  // Check for tasks whose reminder_time has arrived (up to 60s in the past
+  // to catch any missed while the timer was between ticks).
+  // reminder_time = due_time - user_configured_offset, so this fires
+  // exactly when the user asked to be reminded.
+  const rows = execQueryAll<TaskRow>(db, `
+    SELECT * FROM tasks
+    WHERE status NOT IN ('done', 'cancelled')
+      AND reminder_time IS NOT NULL
+      AND reminder_time <= ?
+      AND reminder_time > ?
+    ORDER BY reminder_time ASC
+  `, [now, now - 60_000]);
 
-  const tasks: TaskRow[] = [];
-  for (const windowEnd of windows) {
-    const rows = execQueryAll<TaskRow>(db, `
-      SELECT * FROM tasks
-      WHERE status NOT IN ('done', 'cancelled')
-        AND due_time IS NOT NULL
-        AND reminder_time IS NOT NULL
-        AND due_time > ?
-        AND due_time <= ?
-      ORDER BY due_time ASC
-    `, [now, windowEnd]);
-    for (const row of rows) {
-      if (!notifiedIds.has(row.id)) {
-        tasks.push(row);
-        notifiedIds.add(row.id);
-      }
-    }
-  }
-
-  // Cleanup notified IDs for tasks that are done/cancelled/no longer relevant
-  if (notifiedIds.size > 100) {
+  // Cleanup notified IDs periodically to prevent unbounded growth
+  if (notifiedIds.size > 200) {
     notifiedIds.clear();
   }
 
-  for (const task of tasks) {
-    sendReminder(task);
+  for (const row of rows) {
+    if (!notifiedIds.has(row.id)) {
+      notifiedIds.add(row.id);
+      sendReminder(row);
+    }
   }
 }
 
