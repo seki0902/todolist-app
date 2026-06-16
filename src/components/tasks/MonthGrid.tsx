@@ -16,10 +16,7 @@ const DOT_COLORS: Record<Priority, string> = {
 };
 
 function getTasksForDate(tasks: TaskRow[], dateStr: string): TaskRow[] {
-  return tasks.filter((t) => {
-    if (!t.due_time) return false;
-    return new Date(t.due_time).toISOString().slice(0, 10) === dateStr;
-  });
+  return tasks.filter((t) => t.target_date === dateStr);
 }
 
 function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): Priority[] {
@@ -46,12 +43,11 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
   const dotsMap = useMemo(() => {
     const map = new Map<string, Priority[]>();
     for (const task of tasks) {
-      if (!task.due_time) continue;
-      const d = new Date(task.due_time);
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        const dateStr = d.toISOString().slice(0, 10);
-        if (!map.has(dateStr)) {
-          map.set(dateStr, getPrioritiesForDate(tasks, dateStr));
+      if (!task.target_date) continue;
+      const [y, m] = task.target_date.split('-').map(Number);
+      if (y === year && m === month + 1) {
+        if (!map.has(task.target_date)) {
+          map.set(task.target_date, getPrioritiesForDate(tasks, task.target_date));
         }
       }
     }

@@ -25,16 +25,13 @@ function makeTask(overrides: Partial<TaskRow> = {}): TaskRow {
     ai_meta: null,
     created_at: Date.now(),
     updated_at: Date.now(),
-    target_date: '',
+    target_date: overrides.target_date ?? '',
   };
 }
 
 // Replicate the helper logic from MonthGrid.tsx to test in isolation
 function getTasksForDate(tasks: TaskRow[], dateStr: string): TaskRow[] {
-  return tasks.filter((t) => {
-    if (!t.due_time) return false;
-    return new Date(t.due_time).toISOString().slice(0, 10) === dateStr;
-  });
+  return tasks.filter((t) => t.target_date === dateStr);
 }
 
 function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): number[] {
@@ -45,9 +42,9 @@ function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): number[] {
 describe('MonthGrid — date helpers', () => {
   it('getTasksForDate returns tasks matching a given date', () => {
     const tasks: TaskRow[] = [
-      makeTask({ id: 't1', title: 'A', due_time: new Date('2026-06-16T09:00:00').getTime() }),
-      makeTask({ id: 't2', title: 'B', due_time: new Date('2026-06-17T09:00:00').getTime() }),
-      makeTask({ id: 't3', title: 'C', due_time: null }),
+      makeTask({ id: 't1', title: 'A', target_date: '2026-06-16' }),
+      makeTask({ id: 't2', title: 'B', target_date: '2026-06-17' }),
+      makeTask({ id: 't3', title: 'C', target_date: '' }),
     ];
 
     const jun16 = getTasksForDate(tasks, '2026-06-16');
@@ -55,9 +52,9 @@ describe('MonthGrid — date helpers', () => {
     expect(jun16[0].title).toBe('A');
   });
 
-  it('getTasksForDate excludes tasks with no due_time', () => {
+  it('getTasksForDate excludes tasks with no target_date', () => {
     const tasks: TaskRow[] = [
-      makeTask({ id: 't1', title: 'No date', due_time: null }),
+      makeTask({ id: 't1', title: 'No date', target_date: '' }),
     ];
 
     const result = getTasksForDate(tasks, '2026-06-16');
@@ -65,14 +62,13 @@ describe('MonthGrid — date helpers', () => {
   });
 
   it('getPrioritiesForDate deduplicates and limits to 4', () => {
-    const date = new Date('2026-06-16T09:00:00').getTime();
     const tasks: TaskRow[] = [
-      makeTask({ id: 't1', priority: 1, due_time: date }),
-      makeTask({ id: 't2', priority: 1, due_time: date }),
-      makeTask({ id: 't3', priority: 2, due_time: date }),
-      makeTask({ id: 't4', priority: 3, due_time: date }),
-      makeTask({ id: 't5', priority: 4, due_time: date }),
-      makeTask({ id: 't6', priority: 1, due_time: date }), // 5th unique (P1 already counted)
+      makeTask({ id: 't1', priority: 1, target_date: '2026-06-16' }),
+      makeTask({ id: 't2', priority: 1, target_date: '2026-06-16' }),
+      makeTask({ id: 't3', priority: 2, target_date: '2026-06-16' }),
+      makeTask({ id: 't4', priority: 3, target_date: '2026-06-16' }),
+      makeTask({ id: 't5', priority: 4, target_date: '2026-06-16' }),
+      makeTask({ id: 't6', priority: 1, target_date: '2026-06-16' }), // 5th unique (P1 already counted)
     ];
 
     const priorities = getPrioritiesForDate(tasks, '2026-06-16');
