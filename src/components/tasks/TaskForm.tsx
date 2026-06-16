@@ -7,6 +7,7 @@ import type { TaskRow, CreateTaskInput, UpdateTaskInput, CategoryRow } from '../
 import { Priority, getPriorityLabel } from '../../shared/types/database';
 import type { ParseResult } from '../../shared/types/ai';
 import { TagSelect } from './TagSelect';
+import { toLocalDateStr } from '../../shared/utils/date';
 
 interface TaskFormProps {
   open: boolean;
@@ -109,6 +110,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       recurrence_type: recurrenceType || null,
       recurrence_days: recurrenceDays.length > 0 ? JSON.stringify(recurrenceDays) : null,
       estimated_pomodoro: pomodoro,
+      target_date: toLocalDateStr(new Date()),
     };
 
     if (isEdit && task) {
