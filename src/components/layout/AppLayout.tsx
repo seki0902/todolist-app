@@ -170,7 +170,7 @@ export const AppLayout: React.FC = () => {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className="flex flex-col glass-sidebar">
+          <div className="flex flex-col glass-sidebar overflow-y-auto">
             {/* View switcher */}
             <div className="flex flex-col gap-1 p-3 border-b border-white/10 dark:border-white/5">
               <button

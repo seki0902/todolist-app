@@ -15,13 +15,15 @@ const DOT_COLORS: Record<Priority, string> = {
   [Priority.P4]: 'bg-gray-400',
 };
 
+function getTasksForDate(tasks: TaskRow[], dateStr: string): TaskRow[] {
+  return tasks.filter((t) => {
+    if (!t.due_time) return false;
+    return new Date(t.due_time).toISOString().slice(0, 10) === dateStr;
+  });
+}
+
 function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): Priority[] {
-  const priorities = tasks
-    .filter((t) => {
-      if (!t.due_time) return false;
-      return new Date(t.due_time).toISOString().slice(0, 10) === dateStr;
-    })
-    .map((t) => t.priority);
+  const priorities = getTasksForDate(tasks, dateStr).map((t) => t.priority);
   return [...new Set(priorities)].slice(0, 4);
 }
 
@@ -29,6 +31,7 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
   const today = new Date();
   const [year, setYear] = React.useState(today.getFullYear());
   const [month, setMonth] = React.useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = React.useState<string | null>(null);
 
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -54,6 +57,17 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
     }
     return map;
   }, [tasks, year, month]);
+
+  const selectedTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    return getTasksForDate(tasks, selectedDate);
+  }, [tasks, selectedDate]);
+
+  const selectedDateLabel = useMemo(() => {
+    if (!selectedDate) return '';
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return `${m}月${d}日`;
+  }, [selectedDate]);
 
   return (
     <div className="flex flex-col h-full">
@@ -84,23 +98,27 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7 gap-1.5 flex-1 auto-rows-fr">
+      <div className="grid grid-cols-7 gap-1.5 auto-rows-fr">
         {days.map((d, i) => {
           if (d === null) return <div key={`e${i}`} />;
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           const isToday = dateStr === todayStr;
+          const isSelected = dateStr === selectedDate;
           const dots = dotsMap.get(dateStr) || [];
 
           return (
-            <div
+            <button
               key={d}
-              className={`flex flex-col items-center rounded-xl p-2 transition-colors ${
-                isToday
-                  ? 'bg-primary/10 ring-1 ring-primary/30'
-                  : 'hover:bg-accent'
+              onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+              className={`flex flex-col items-center rounded-xl p-2 transition-colors cursor-pointer ${
+                isSelected
+                  ? 'bg-primary/20 ring-2 ring-primary/50'
+                  : isToday
+                    ? 'bg-primary/10 ring-1 ring-primary/30'
+                    : 'hover:bg-accent'
               }`}
             >
-              <span className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+              <span className={`text-sm font-semibold ${isToday || isSelected ? 'text-primary' : 'text-foreground'}`}>
                 {d}
               </span>
               {/* Priority dots */}
@@ -117,10 +135,49 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
                   {dots.length > 3 ? `${dots.length}` : ''}
                 </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Selected day task list */}
+      {selectedDate && (
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-foreground">
+              📅 {selectedDateLabel}
+            </span>
+            <button
+              onClick={() => setSelectedDate(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              关闭
+            </button>
+          </div>
+          {selectedTasks.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">当天无任务</p>
+          ) : (
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {selectedTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-accent"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      DOT_COLORS[task.priority] || 'bg-gray-400'
+                    }`}
+                  />
+                  <span className="text-foreground truncate flex-1">{task.title}</span>
+                  {task.progress > 0 && (
+                    <span className="text-muted-foreground flex-shrink-0">{task.progress}%</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Today button */}
       <button
@@ -128,6 +185,7 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
           const t = new Date();
           setYear(t.getFullYear());
           setMonth(t.getMonth());
+          setSelectedDate(null);
         }}
         className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground rounded-lg py-1.5 transition-colors"
       >

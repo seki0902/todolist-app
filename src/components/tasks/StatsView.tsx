@@ -3,21 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cel
 import type { TaskRow } from '../../shared/types/database';
 import { Priority, getPriorityLabel } from '../../shared/types/database';
 import { useCategoryStore } from '../../store/useCategoryStore';
+import { usePomodoroStore } from '../../store/usePomodoroStore';
 import { MonthGrid } from './MonthGrid';
-
-interface PomodoroRecord {
-  taskId: string | null;
-  taskTitle: string;
-  duration: number;
-  completedAt: number;
-}
-
-function loadPomodoroHistory(): PomodoroRecord[] {
-  try {
-    const raw = localStorage.getItem('focusflow-pomodoro-history');
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
 
 interface StatsViewProps {
   tasks: TaskRow[];
@@ -28,6 +15,8 @@ const PIE_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#9ca3af'];
 export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   const [activeTab, setActiveTab] = useState<'charts' | 'calendar'>('charts');
   const { categories } = useCategoryStore();
+  // Subscribe to pomodoro history so stats re-render when a session completes
+  const pomodoroHistory = usePomodoroStore((s) => s.history);
 
   const stats = useMemo(() => {
     const todayStart = new Date().setHours(0, 0, 0, 0);
@@ -74,11 +63,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       return { name: `周${weekDays[i]}`, value: count };
     });
 
-    // Use actual pomodoro history from localStorage, not estimated
-    const pomodoroHistory = loadPomodoroHistory();
+    // Pomodoro stats from reactive store subscription
     const totalCompletedPomodoros = pomodoroHistory.length;
     const totalFocusMinutes = pomodoroHistory.reduce((sum, r) => sum + r.duration, 0);
-    const estimatedPomodoros = tasks.reduce((sum, t) => sum + t.estimated_pomodoro, 0);
 
     return {
       total: tasks.length,
@@ -95,7 +82,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
       categoryDist,
       weekTrend,
     };
-  }, [tasks, categories]);
+  }, [tasks, categories, pomodoroHistory]);
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto absolute inset-0">

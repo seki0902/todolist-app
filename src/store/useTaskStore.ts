@@ -41,13 +41,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   createTask: async (input: CreateTaskInput) => {
     const response = await window.api.db.createTask(input);
+    // Do NOT optimistically add to state — the sync broadcast from main
+    // process handles insertion. Optimistic update races with sync and
+    // causes duplicate tasks when sync arrives before the IPC response.
     if (response.success && response.data) {
-      // Optimistic update: add immediately so UI reflects the new task
-      // without waiting for the sync broadcast round-trip.
-      // The sync handler will de-duplicate by id if it arrives later.
-      set((state) => ({
-        tasks: [...state.tasks, response.data!],
-      }));
       return response.data;
     }
     return null;
