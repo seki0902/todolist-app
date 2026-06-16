@@ -3,7 +3,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Plus, Search, ListTodo, Tag, X, Calendar } from 'lucide-react';
+import { Plus, Search, ListTodo, Tag, X } from 'lucide-react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTagStore } from '../../store/useTagStore';
@@ -18,6 +18,7 @@ import { TaskStatus, Priority, PRIORITY_ORDER } from '../../shared/types/databas
 interface TaskListProps {
   categoryId: string | null;
   dragOverId: string | null;
+  selectedDate: string | null;
 }
 
 function buildTree(tasks: TaskRow[]): TaskRow[] {
@@ -85,7 +86,7 @@ function getChildInfo(tasks: TaskRow[], parentId: string): { count: number; comp
   return { count: children.length, completed };
 }
 
-export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) => {
+export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, selectedDate }) => {
   const {
     tasks,
     loading,
@@ -103,17 +104,14 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
-  const [miniCalOpen, setMiniCalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
   useEffect(() => {
     loadTags();
   }, []);
 
-  // Reload tasks when tag or date filter changes
+  // Reload tasks when tag filter changes (date filter is now client-side)
   useEffect(() => {
-    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined });
-  }, [selectedTagIds, selectedDate]);
+    loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined });
+  }, [selectedTagIds]);
 
   // Batch load tags for all visible tasks (replaces per-item N+1 queries)
   useEffect(() => {
@@ -153,8 +151,16 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
       return false;
     });
 
+    // Date filter (client-side — does not pollute store.tasks, so MiniCalendar dots stay intact)
+    if (selectedDate) {
+      result = result.filter((t) => {
+        if (!t.due_time) return false;
+        return new Date(t.due_time).toISOString().slice(0, 10) === selectedDate;
+      });
+    }
+
     return buildTree(result);
-  }, [tasks, categoryId, search]);
+  }, [tasks, categoryId, search, showCancelled, selectedDate]);
 
   // Build depth map and next-step map for TaskItem
   const { depthMap, nextStepIds } = useMemo(() => {
@@ -209,6 +215,8 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
       let newStatus = task.status;
       if (progress === 100) {
         newStatus = TaskStatus.DONE;
+      } else if (progress === 0 && (task.status === TaskStatus.IN_PROGRESS || task.status === TaskStatus.DONE)) {
+        newStatus = TaskStatus.TODO;
       } else if (progress > 0 && task.status === TaskStatus.TODO) {
         newStatus = TaskStatus.IN_PROGRESS;
       } else if (progress < 100 && task.status === TaskStatus.DONE) {
@@ -312,36 +320,6 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Mini month picker */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMiniCalOpen(!miniCalOpen)}
-              title="选择日期筛选"
-            >
-              <Calendar className="h-4 w-4" />
-              {selectedDate && (
-                <span className="ml-1 text-xs text-primary">
-                  {new Date(selectedDate).getDate()}日
-                </span>
-              )}
-            </Button>
-            {miniCalOpen && (
-              <MiniMonthPicker
-                selectedDate={selectedDate}
-                onSelect={(d) => {
-                  setSelectedDate(d);
-                  setMiniCalOpen(false);
-                  if (d) {
-                    setSearch('');
-                    loadTasks();
-                  }
-                }}
-                onClose={() => setMiniCalOpen(false)}
-              />
-            )}
-          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -415,7 +393,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
             ⚠️ 加载失败：{error}
           </span>
           <button
-            onClick={() => loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined, due_date: selectedDate ?? undefined })}
+            onClick={() => loadTasks({ tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined })}
             className="ml-auto text-xs font-medium text-red-600 dark:text-red-400 hover:underline"
           >
             重试
@@ -481,91 +459,6 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
         categories={categories}
         defaultCategoryId={categoryId ?? undefined}
       />
-    </div>
-  );
-};
-
-// Inline mini month picker for filtering tasks by date
-const WEEKDAYS_ZH = ['一', '二', '三', '四', '五', '六', '日'];
-
-const MiniMonthPicker: React.FC<{
-  selectedDate: string | null;
-  onSelect: (date: string | null) => void;
-  onClose: () => void;
-}> = ({ selectedDate, onSelect, onClose }) => {
-  const today = new Date();
-  const [year, setYear] = React.useState(today.getFullYear());
-  const [month, setMonth] = React.useState(today.getMonth());
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
-  const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
-
-  const days: (number | null)[] = [];
-  for (let i = 0; i < adjustedFirstDay; i++) days.push(null);
-  for (let d = 1; d <= daysInMonth; d++) days.push(d);
-
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  return (
-    <div className="absolute top-full right-0 mt-1 z-20 w-64 rounded-xl border border-border bg-card p-3 shadow-xl">
-      <div className="flex items-center justify-between mb-2">
-        <button
-          onClick={() => month === 0 ? (setYear(year - 1), setMonth(11)) : setMonth(month - 1)}
-          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-medium">
-          {year}年{month + 1}月
-        </span>
-        <button
-          onClick={() => month === 11 ? (setYear(year + 1), setMonth(0)) : setMonth(month + 1)}
-          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-        >
-          ›
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-0.5 text-center">
-        {WEEKDAYS_ZH.map((w) => (
-          <span key={w} className="text-[10px] text-muted-foreground py-1">{w}</span>
-        ))}
-        {days.map((d, i) => {
-          if (d === null) return <span key={`e${i}`} />;
-          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          const isToday = dateStr === todayStr;
-          const isSelected = dateStr === selectedDate;
-          return (
-            <button
-              key={d}
-              onClick={() => {
-                if (isSelected) {
-                  onSelect(null);
-                } else {
-                  onSelect(dateStr);
-                }
-              }}
-              className={`rounded-full w-7 h-7 text-xs transition-colors ${
-                isSelected
-                  ? 'bg-primary text-primary-foreground'
-                  : isToday
-                    ? 'bg-primary/20 text-primary font-semibold'
-                    : 'hover:bg-accent text-foreground'
-              }`}
-            >
-              {d}
-            </button>
-          );
-        })}
-      </div>
-      {selectedDate && (
-        <button
-          onClick={() => onSelect(null)}
-          className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground"
-        >
-          清除日期筛选
-        </button>
-      )}
     </div>
   );
 };
