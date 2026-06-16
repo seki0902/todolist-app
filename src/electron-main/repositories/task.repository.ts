@@ -21,11 +21,13 @@ export class TaskRepository {
         id, title, description, priority, status, progress,
         start_time, due_time, reminder_time, recurrence_type, recurrence_days,
         category_id, parent_id, sort, estimated_pomodoro, ai_meta,
+        target_date,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
+        ?,
         ?, ?
       )
     `);
@@ -47,6 +49,7 @@ export class TaskRepository {
       input.sort ?? 0,
       input.estimated_pomodoro ?? 0,
       input.ai_meta ?? null,
+      input.target_date ?? '',
       now,
       now,
     ]);
@@ -86,6 +89,7 @@ export class TaskRepository {
       ['sort', 'sort'],
       ['estimated_pomodoro', 'estimated_pomodoro'],
       ['ai_meta', 'ai_meta'],
+      ['target_date', 'target_date'],
     ];
 
     for (const [key, col] of mappings) {
@@ -139,6 +143,69 @@ export class TaskRepository {
       this.affectedAncestorIds = new Set();
     }
     return changes > 0;
+  }
+
+  /**
+   * Clone tasks: create new copies with target_date set to today.
+   * Copies task-definition fields only. Does NOT copy time/reminder/recurrence/parent/ai_meta.
+   * @returns Array of newly created TaskRow objects
+   */
+  cloneTasks(taskIds: string[], todayDateStr: string): TaskRow[] {
+    const selectStmt = this.db.prepare('SELECT * FROM tasks WHERE id = ?');
+    const insertStmt = this.db.prepare(`
+      INSERT INTO tasks (
+        id, title, description, priority, status, progress,
+        category_id, estimated_pomodoro,
+        target_date,
+        start_time, due_time, reminder_time, recurrence_type, recurrence_days,
+        parent_id, sort, ai_meta,
+        created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?,
+        ?, ?,
+        ?,
+        NULL, NULL, NULL, NULL, NULL,
+        NULL, 0, NULL,
+        ?, ?
+      )
+    `);
+
+    const cloned: TaskRow[] = [];
+    const now = Date.now();
+
+    for (const taskId of taskIds) {
+      selectStmt.bind([taskId]);
+      if (!selectStmt.step()) {
+        selectStmt.reset();
+        continue;
+      }
+      const row = selectStmt.getAsObject() as TaskRow;
+      selectStmt.reset();
+
+      const newId = crypto.randomUUID();
+
+      insertStmt.run([
+        newId,
+        row.title,
+        row.description ?? '',
+        row.priority,
+        row.status,
+        row.progress,
+        row.category_id,
+        row.estimated_pomodoro,
+        todayDateStr,
+        now,
+        now,
+      ]);
+
+      const newTask = this.getById(newId);
+      if (newTask) cloned.push(newTask);
+    }
+
+    selectStmt.free();
+    insertStmt.free();
+
+    return cloned;
   }
 
   getById(id: string): TaskRow | null {
