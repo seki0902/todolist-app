@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { TaskStatus, Priority } from '../../shared/types/database';
-import { Check, GripHorizontal, Focus, ListTodo, Play, ArrowLeft, Info } from 'lucide-react';
+import { Check, GripHorizontal, Focus, ListTodo, Play, ArrowLeft, Info, X } from 'lucide-react';
 
 const OPACITY_PRESETS = [60, 70, 80, 90, 100] as const;
 
 export const StickyNote: React.FC = () => {
   const { tasks, loadTasks, updateTask } = useTaskStore();
   const [opacity, setOpacity] = useState(0.80);
+  const [showGuide, setShowGuide] = useState(() => {
+    return localStorage.getItem('sticky-guide-dismissed') !== 'true';
+  });
 
   useEffect(() => {
     loadTasks();
@@ -105,10 +108,13 @@ export const StickyNote: React.FC = () => {
         <div className="flex-1" />
         {/* Return to main window */}
         <button
-          onClick={() => { try { (window as any).api?.sticky?.focusMain?.(); } catch {} }}
+          onClick={() => {
+            try { (window as any).api?.sticky?.focusMain?.(); } catch {}
+            try { (window as any).api?.sticky?.close?.(); } catch {}
+          }}
           className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs text-white/70 hover:text-white hover:bg-white/15 transition-colors"
           style={{ WebkitAppRegion: 'no-drag' as any }}
-          title="返回主窗口"
+          title="关闭便签并返回主窗口"
         >
           <ArrowLeft className="h-3 w-3" />
           返回
@@ -132,18 +138,31 @@ export const StickyNote: React.FC = () => {
       </div>
 
       {/* Guidance banner for new users */}
-      <div
-        className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/5 p-3 flex items-start gap-2"
-        style={{ WebkitAppRegion: 'no-drag' as any }}
-      >
-        <Info className="h-3.5 w-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="text-[11px] font-medium text-white/80">💡 便签模式指南</p>
-          <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">
-            点击任务可快速切换至主窗口 · 勾选圆圈完成任务 · 顶部调整透明度 · 按需固定悬浮
-          </p>
+      {showGuide && (
+        <div
+          className="mx-3 mt-3 rounded-xl border border-white/10 bg-white/5 p-3 flex items-start gap-2"
+          style={{ WebkitAppRegion: 'no-drag' as any }}
+        >
+          <Info className="h-3.5 w-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-[11px] font-medium text-white/80">💡 便签模式指南</p>
+            <p className="text-[10px] text-white/40 mt-0.5 leading-relaxed">
+              点击任务可快速切换至主窗口 · 勾选圆圈完成任务 · 顶部调整透明度 · 按需固定悬浮
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setShowGuide(false);
+              localStorage.setItem('sticky-guide-dismissed', 'true');
+            }}
+            className="flex-shrink-0 rounded-full p-0.5 text-white/30 hover:text-white/70 hover:bg-white/10 transition-colors"
+            style={{ WebkitAppRegion: 'no-drag' as any }}
+            title="不再显示"
+          >
+            <X className="h-3 w-3" />
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Scrollable task list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4" style={{ WebkitAppRegion: 'no-drag' as any }}>

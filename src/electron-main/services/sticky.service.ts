@@ -182,4 +182,11 @@ export function registerStickyIpcHandlers(): void {
     focusMainWindow();
     return { success: true };
   });
+
+  ipcMain.handle('sticky:close', () => {
+    if (stickyWindow && !stickyWindow.isDestroyed()) {
+      stickyWindow.close();
+    }
+    return { success: true };
+  });
 }

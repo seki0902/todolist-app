@@ -96,6 +96,8 @@ const stickyApi = {
     ipcRenderer.invoke('sticky:setOpacity', opacity),
   focusMain: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('sticky:focusMain'),
+  close: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('sticky:close'),
 };
 
 const backupApi = {
