@@ -16,6 +16,7 @@ interface TaskState {
   initSync: () => void;
   cleanup: () => void;
   migrateTasksToToday: (taskIds: string[]) => Promise<void>;
+  cloneTasksToToday: (taskIds: string[]) => Promise<TaskRow[]>;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -148,5 +149,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     if (response.success && response.data) {
       set({ tasks: response.data });
     }
+  },
+
+  cloneTasksToToday: async (taskIds: string[]) => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const response = await window.api.db.cloneTasks(taskIds, dateStr);
+    // Note: IPC handler broadcasts sync 'insert' for each clone,
+    // so handleSync will add them to state automatically — no manual set needed.
+    return response.success && response.data ? response.data : [];
   },
 }));

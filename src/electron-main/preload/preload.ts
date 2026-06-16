@@ -28,6 +28,9 @@ const dbApi = {
   listTasks: (filter?: TaskListFilter): Promise<IPCResponse<TaskRow[]>> =>
     ipcRenderer.invoke(IPC_CHANNELS.TASK.LIST, filter),
 
+  cloneTasks: (taskIds: string[], todayDateStr: string): Promise<IPCResponse<TaskRow[]>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.TASK.CLONE_TASKS, taskIds, todayDateStr),
+
   createCategory: (input: CreateCategoryInput): Promise<IPCResponse<CategoryRow>> =>
     ipcRenderer.invoke(IPC_CHANNELS.CATEGORY.CREATE, input),
 
