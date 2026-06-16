@@ -53,9 +53,10 @@ export class TaskRepository {
     stmt.free();
 
     // Update parent progress if this is a child task
-    this.affectedAncestorIds = new Set();
     if (input.parent_id) {
-      this.recalcParentProgress(input.parent_id);
+      this.affectedAncestorIds = this.recalcParentProgress(input.parent_id);
+    } else {
+      this.affectedAncestorIds = new Set();
     }
 
     return this.getById(id)!;
@@ -106,22 +107,26 @@ export class TaskRepository {
     stmt.free();
 
     // Update parent progress (current or new parent)
-    this.affectedAncestorIds = new Set();
+    const ancestorIds = new Set<string>();
     const updated = this.getById(id)!;
     if (updated.parent_id) {
-      this.recalcParentProgress(updated.parent_id);
+      for (const aid of this.recalcParentProgress(updated.parent_id)) {
+        ancestorIds.add(aid);
+      }
     }
     // Also recalc old parent if parent changed
     if (input.parent_id !== undefined && existing.parent_id && existing.parent_id !== input.parent_id) {
-      this.recalcParentProgress(existing.parent_id);
+      for (const aid of this.recalcParentProgress(existing.parent_id)) {
+        ancestorIds.add(aid);
+      }
     }
+    this.affectedAncestorIds = ancestorIds;
 
     return updated;
   }
 
   delete(id: string): boolean {
     const task = this.getById(id);
-    this.affectedAncestorIds = new Set();
     const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
     stmt.run([id]);
     const changes = this.db.getRowsModified();
@@ -129,7 +134,9 @@ export class TaskRepository {
 
     // Update parent progress if this was a child task
     if (task?.parent_id) {
-      this.recalcParentProgress(task.parent_id);
+      this.affectedAncestorIds = this.recalcParentProgress(task.parent_id);
+    } else {
+      this.affectedAncestorIds = new Set();
     }
     return changes > 0;
   }

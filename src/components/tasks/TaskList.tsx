@@ -3,11 +3,14 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Plus, Search, ListTodo, Tag, X } from 'lucide-react';
+import { Plus, Search, ListTodo, Tag, X, Calendar } from 'lucide-react';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTagStore } from '../../store/useTagStore';
 import { DayStrip } from './DayStrip';
+import { WeekStrip } from './WeekStrip';
+import { SmartInput } from './SmartInput';
+import type { ParseResult } from '../../shared/types/ai';
 import { TaskItem } from './TaskItem';
 import { TaskSkeleton } from '../ui/Skeleton';
 import { TaskForm } from './TaskForm';
@@ -18,7 +21,6 @@ import { TaskStatus, Priority, PRIORITY_ORDER } from '../../shared/types/databas
 interface TaskListProps {
   categoryId: string | null;
   dragOverId: string | null;
-  selectedDate: string | null;
 }
 
 function buildTree(tasks: TaskRow[]): TaskRow[] {
@@ -86,7 +88,7 @@ function getChildInfo(tasks: TaskRow[], parentId: string): { count: number; comp
   return { count: children.length, completed };
 }
 
-export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, selectedDate }) => {
+export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) => {
   const {
     tasks,
     loading,
@@ -104,6 +106,12 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // AI confirmation queue
+  const [confirmQueue, setConfirmQueue] = useState<ParseResult[]>([]);
+  const [confirmIndex, setConfirmIndex] = useState(0);
+  const aiRawInputRef = React.useRef<string>('');
   useEffect(() => {
     loadTags();
   }, []);
@@ -151,7 +159,7 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
       return false;
     });
 
-    // Date filter (client-side — does not pollute store.tasks, so MiniCalendar dots stay intact)
+    // Date filter (client-side — does not pollute store.tasks, so WeekStrip dots stay intact)
     if (selectedDate) {
       result = result.filter((t) => {
         if (!t.due_time) return false;
@@ -238,20 +246,78 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
     [updateTask]
   );
 
-  const handleSave = async (
-    data: CreateTaskInput | { id: string; input: UpdateTaskInput }
-  ) => {
-    if ('id' in data) {
-      await updateTask(data.id, { ...data.input, parent_id: parentId || data.input.parent_id });
+  const isAIMode = confirmQueue.length > 0;
+  const currentAIResult = isAIMode ? confirmQueue[confirmIndex] : null;
+  const savingRef = React.useRef(false);
+
+  const advanceAIQueue = useCallback(() => {
+    const nextIndex = confirmIndex + 1;
+    if (nextIndex >= confirmQueue.length) {
+      // All done
+      setConfirmQueue([]);
+      setConfirmIndex(0);
+      setFormOpen(false);
+      setEditingTask(null);
+      setParentId(null);
     } else {
-      await createTask({ ...data, parent_id: parentId || data.parent_id });
+      setConfirmIndex(nextIndex);
+      // Keep formOpen=true, TaskForm re-renders with next aiPrefill
     }
+  }, [confirmIndex, confirmQueue.length]);
+
+  const handleAISkip = useCallback(() => {
+    advanceAIQueue();
+  }, [advanceAIQueue]);
+
+  const handleAISkipAll = useCallback(() => {
+    setConfirmQueue([]);
+    setConfirmIndex(0);
     setFormOpen(false);
     setEditingTask(null);
     setParentId(null);
+  }, []);
+
+  const handleSave = async (
+    data: CreateTaskInput | { id: string; input: UpdateTaskInput }
+  ) => {
+    // Guard against double-submit (form submit + Dialog close race)
+    if (savingRef.current) return;
+    savingRef.current = true;
+
+    try {
+      if ('id' in data) {
+        await updateTask(data.id, { ...data.input, parent_id: parentId || data.input.parent_id });
+      } else {
+        const input = { ...data, parent_id: parentId || data.parent_id };
+        if (currentAIResult) {
+          input.ai_meta = JSON.stringify({
+            source: currentAIResult.source,
+            confidence: currentAIResult.confidence,
+            raw_input: aiRawInputRef.current,
+            parsed_at: Date.now(),
+          });
+        }
+        await createTask(input);
+      }
+    } finally {
+      savingRef.current = false;
+    }
+
+    if (isAIMode) {
+      advanceAIQueue();
+    } else {
+      setFormOpen(false);
+      setEditingTask(null);
+      setParentId(null);
+    }
   };
 
   const handleEdit = (task: TaskRow) => {
+    // If editing a task while AI queue is active, discard the queue
+    if (isAIMode) {
+      setConfirmQueue([]);
+      setConfirmIndex(0);
+    }
     setEditingTask(task);
     setParentId(task.parent_id);
     setFormOpen(true);
@@ -323,6 +389,14 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => setCalendarOpen(!calendarOpen)}
+            title="选择日期筛选"
+          >
+            <Calendar className={`h-4 w-4 ${selectedDate ? 'text-primary' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => { setEditingTask(null); setParentId(null); setFormOpen(true); }}
           >
             <Plus className="h-4 w-4" /> 新建任务
@@ -330,6 +404,24 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
         </div>
       </div>
 
+      <SmartInput
+        onResults={(results, rawText) => {
+          aiRawInputRef.current = rawText;
+          setConfirmQueue(results);
+          setConfirmIndex(0);
+          setEditingTask(null);
+          setParentId(null);
+          setFormOpen(true);
+        }}
+        disabled={isAIMode}
+      />
+      {calendarOpen && (
+        <WeekStrip
+          tasks={tasks}
+          selectedDate={selectedDate}
+          onSelectDate={(d) => setSelectedDate(d)}
+        />
+      )}
       <DayStrip tasks={tasks} />
 
       {/* Toolbar */}
@@ -453,11 +545,23 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId, sele
       {/* Task Form Modal */}
       <TaskForm
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditingTask(null); setParentId(null); }}
+        onClose={() => {
+          if (isAIMode) {
+            handleAISkip();
+          } else {
+            setFormOpen(false);
+            setEditingTask(null);
+            setParentId(null);
+          }
+        }}
         onSave={handleSave}
         task={editingTask}
         categories={categories}
         defaultCategoryId={categoryId ?? undefined}
+        aiPrefill={currentAIResult}
+        aiProgress={isAIMode ? { current: confirmIndex + 1, total: confirmQueue.length } : null}
+        onSkip={isAIMode ? handleAISkip : undefined}
+        onSkipAll={isAIMode ? handleAISkipAll : undefined}
       />
     </div>
   );

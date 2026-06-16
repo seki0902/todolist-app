@@ -126,6 +126,11 @@ const winApi = {
   },
 };
 
+const aiApi = {
+  parse: (text: string): Promise<import('../../shared/types/database').IPCResponse<import('../../shared/types/ai').ParseResult[]>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AI.PARSE, text),
+};
+
 export interface FocusFlowAPI {
   db: typeof dbApi;
   app: typeof appApi;
@@ -134,6 +139,7 @@ export interface FocusFlowAPI {
   backup: typeof backupApi;
   win: typeof winApi;
   notify: typeof notifyApi;
+  ai: typeof aiApi;
 }
 
 contextBridge.exposeInMainWorld('api', {
@@ -144,4 +150,5 @@ contextBridge.exposeInMainWorld('api', {
   backup: backupApi,
   win: winApi,
   notify: notifyApi,
+  ai: aiApi,
 } as FocusFlowAPI);

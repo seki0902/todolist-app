@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line } from 'recharts';
 import type { TaskRow } from '../../shared/types/database';
 import { Priority, getPriorityLabel } from '../../shared/types/database';
 import { useCategoryStore } from '../../store/useCategoryStore';
+import { MonthGrid } from './MonthGrid';
 
 interface PomodoroRecord {
   taskId: string | null;
@@ -25,6 +26,7 @@ interface StatsViewProps {
 const PIE_COLORS = ['#ef4444', '#f97316', '#3b82f6', '#9ca3af'];
 
 export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
+  const [activeTab, setActiveTab] = useState<'charts' | 'calendar'>('charts');
   const { categories } = useCategoryStore();
 
   const stats = useMemo(() => {
@@ -97,7 +99,39 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto absolute inset-0">
-      <h2 className="text-lg font-semibold text-foreground">数据统计</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">数据统计</h2>
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 rounded-lg bg-secondary">
+          <button
+            onClick={() => setActiveTab('charts')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'charts'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            📊 图表
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'calendar'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            📅 日历
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'calendar' ? (
+        <div className="flex-1">
+          <MonthGrid tasks={tasks} />
+        </div>
+      ) : (
+        <>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4">
@@ -202,6 +236,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

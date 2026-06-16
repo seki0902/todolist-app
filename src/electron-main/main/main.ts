@@ -29,6 +29,7 @@ import { registerTagIpcHandlers } from '../ipc/tag.ipc';
 import { startReminderService, stopReminderService } from '../services/reminder.service';
 import { startRecurrenceService, stopRecurrenceService } from '../services/recurrence.service';
 import { registerBackupIpcHandlers } from '../ipc/backup.ipc';
+import { registerAIIpcHandlers } from '../ipc/ai.ipc';
 import { registerStickyIpcHandlers, createStickyWindow } from '../services/sticky.service';
 
 let mainWindow: BrowserWindow | null = null;
@@ -58,7 +59,8 @@ if (!gotTheLock) { startupLog('Another instance running, quitting'); app.quit();
       const tagRepo = new TagRepository(db);
       registerTaskIpcHandlers(taskRepo); registerCategoryIpcHandlers(categoryRepo);
       registerTemplateIpcHandlers(templateRepo); registerTagIpcHandlers(tagRepo);
-      registerStickyIpcHandlers(); registerBackupIpcHandlers(); startReminderService(); startRecurrenceService();
+      registerStickyIpcHandlers(); registerBackupIpcHandlers(); registerAIIpcHandlers();
+      startReminderService(); startRecurrenceService();
       startupLog('IPC handlers registered, about to createWindow()');
       createWindow();
       startupLog('createWindow() done, app should be visible');

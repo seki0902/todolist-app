@@ -52,11 +52,14 @@ function checkReminders(): void {
 }
 
 function sendReminder(task: TaskRow): void {
-  const minutesLeft = Math.round((task.due_time! - Date.now()) / 60000);
+  if (!task.due_time) return; // Guard: reminder_time can exist without due_time in edge cases
+  const minutesLeft = Math.round((task.due_time - Date.now()) / 60000);
 
   const notification = new Notification({
     title: '⏰ 任务提醒',
-    body: `"${task.title}" 将在 ${minutesLeft} 分钟后到期`,
+    body: minutesLeft > 0
+      ? `"${task.title}" 将在 ${minutesLeft} 分钟后到期`
+      : `"${task.title}" 已经到期`,
     urgency: 'critical',
     closeButtonText: '知道了',
   });

@@ -27,6 +27,10 @@ export const IPC_CHANNELS = {
   SYNC: 'db:sync',
   NOTIFY: 'app:notify',
   STICKY: 'app:sticky',
+  AI: {
+    PARSE: 'ai:parse',
+    RESET_OLLAMA: 'ai:reset-ollama',
+  },
 } as const;
 
 export interface DBSyncEvent {

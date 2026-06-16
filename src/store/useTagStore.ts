@@ -111,6 +111,21 @@ export const useTagStore = create<TagState>((set, get) => ({
         }
         break;
       }
+      case 'update': {
+        if (event.payload) {
+          const updated = Array.isArray(event.payload) ? event.payload[0] : event.payload;
+          if (updated) {
+            set({
+              tags: tags.map((t) =>
+                t.id === (updated as TagRow).id ? (updated as TagRow) : t
+              ),
+            });
+          }
+        } else {
+          get().loadTags();
+        }
+        break;
+      }
       case 'delete': {
         set({
           tags: tags.filter((t) => !event.ids.includes(t.id)),

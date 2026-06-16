@@ -18,7 +18,6 @@ import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTagStore } from '../../store/useTagStore';
 import { useTheme } from '../../hooks/useTheme';
 import { CategorySidebar } from '../sidebar/CategorySidebar';
-import { MiniCalendar } from '../sidebar/MiniCalendar';
 import { TaskList } from '../tasks/TaskList';
 import { PomodoroWorkbench } from '../tasks/PomodoroWorkbench';
 import { PomodoroFloating } from '../tasks/PomodoroFloating';
@@ -32,7 +31,6 @@ type View = 'focus' | 'tasks' | 'stats';
 
 export const AppLayout: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>('focus');
   const [manageOpen, setManageOpen] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -233,17 +231,6 @@ export const AppLayout: React.FC = () => {
               }}
             />
 
-            <MiniCalendar
-              tasks={tasks}
-              selectedDate={selectedDate}
-              onSelectDate={(d) => setSelectedDate(d)}
-              onDateDoubleClick={(date) => {
-                setEditingTask(null);
-                setPrefillDate(date);
-                setFormOpen(true);
-              }}
-            />
-
             {/* Minimized pomodoro timer docks here */}
             <PomodoroFloating />
 
@@ -277,7 +264,6 @@ export const AppLayout: React.FC = () => {
             <TaskList
               categoryId={selectedCategory}
               dragOverId={dragOverId}
-              selectedDate={selectedDate}
             />
           )}
         </main>

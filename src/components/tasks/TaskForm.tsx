@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import type { TaskRow, CreateTaskInput, UpdateTaskInput, CategoryRow } from '../../shared/types/database';
 import { Priority, getPriorityLabel } from '../../shared/types/database';
+import type { ParseResult } from '../../shared/types/ai';
 import { TagSelect } from './TagSelect';
 
 interface TaskFormProps {
@@ -14,6 +15,11 @@ interface TaskFormProps {
   task?: TaskRow | null;
   categories: CategoryRow[];
   defaultCategoryId?: string;
+  // ── AI prefill mode ──
+  aiPrefill?: ParseResult | null;
+  aiProgress?: { current: number; total: number } | null;
+  onSkip?: () => void;
+  onSkipAll?: () => void;
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({
@@ -23,6 +29,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   task,
   categories,
   defaultCategoryId,
+  aiPrefill,
+  aiProgress,
+  onSkip,
+  onSkipAll,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -35,6 +45,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   const [reminderOffset, setReminderOffset] = useState(0); // minutes before due_time
 
   const isEdit = !!task;
+  const isAIMode = !!aiPrefill && !isEdit;
 
   useEffect(() => {
     if (open) {
@@ -49,7 +60,6 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           setRecurrenceDays(task.recurrence_days ? JSON.parse(task.recurrence_days) : []);
         } catch { setRecurrenceDays([]); }
         setPomodoro(task.estimated_pomodoro);
-        // Reverse-compute reminder offset from stored reminder_time
         if (task.reminder_time && task.due_time) {
           const diffMin = Math.round((task.due_time - task.reminder_time) / 60000);
           const presets = [5, 15, 30, 60];
@@ -57,6 +67,17 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         } else {
           setReminderOffset(0);
         }
+      } else if (aiPrefill) {
+        // AI prefill mode
+        setTitle(aiPrefill.title);
+        setDescription(aiPrefill.description || '');
+        setPriority(aiPrefill.priority);
+        setCategoryId(aiPrefill.category_id || defaultCategoryId || '');
+        setDueTime(aiPrefill.due_time ? toDatetimeLocal(aiPrefill.due_time) : '');
+        setRecurrenceType(aiPrefill.recurrence_type || '');
+        setRecurrenceDays(aiPrefill.recurrence_days || []);
+        setPomodoro(aiPrefill.estimated_pomodoro || 0);
+        setReminderOffset(aiPrefill.reminder_offset || 0);
       } else {
         setTitle('');
         setDescription('');
@@ -69,7 +90,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         setReminderOffset(0);
       }
     }
-  }, [open, task]);
+  }, [open, task, aiPrefill]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +119,27 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} title={isEdit ? '编辑任务' : '新建任务'}>
+    <Dialog
+      open={open}
+      onClose={isAIMode ? (onSkip || onClose) : onClose}
+      title={
+        isAIMode && aiProgress
+          ? `AI 解析 · 第 ${aiProgress.current}/${aiProgress.total} 个`
+          : isEdit
+            ? '编辑任务'
+            : '新建任务'
+      }
+    >
+      {/* AI hint banner */}
+      {isAIMode && aiPrefill && (
+        <div className="mb-4 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950 px-3 py-2 flex items-start gap-2">
+          <span className="text-sm flex-shrink-0">🤖</span>
+          <p className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+            {aiPrefill.ai_hint}
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           label="任务名称"
@@ -222,12 +263,32 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <TagSelect taskId={task.id} />
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            取消
-          </Button>
-          <Button type="submit">
-            {isEdit ? '保存' : '创建任务'}
-          </Button>
+          {isAIMode ? (
+            <>
+              {onSkipAll && (
+                <Button type="button" variant="ghost" onClick={onSkipAll}>
+                  全部跳过
+                </Button>
+              )}
+              {onSkip && (
+                <Button type="button" variant="ghost" onClick={onSkip}>
+                  跳过
+                </Button>
+              )}
+              <Button type="submit">
+                保存 → 下一个
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="ghost" onClick={onClose}>
+                取消
+              </Button>
+              <Button type="submit">
+                {isEdit ? '保存' : '创建任务'}
+              </Button>
+            </>
+          )}
         </div>
       </form>
     </Dialog>

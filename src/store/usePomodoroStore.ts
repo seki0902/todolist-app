@@ -140,8 +140,9 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       // Persist pomodoro count to task ai_meta for cross-device sync
       if (selectedTaskId) {
         try {
+          // saveHistory already includes the current session, so loadHistory() reflects it
           const allRecords = loadHistory().filter((r) => r.taskId === selectedTaskId);
-          const sessionCount = allRecords.length + 1; // +1 for the one just completed
+          const sessionCount = allRecords.length;
           (window as any).api?.db?.updateTask?.(selectedTaskId, {
             ai_meta: JSON.stringify({ pomodoro_sessions: sessionCount, last_session_at: Date.now() }),
           });
