@@ -111,6 +111,7 @@ export interface TaskRow {
   ai_meta: string | null;
   created_at: number;
   updated_at: number;
+  target_date: string;  // 'YYYY-MM-DD'
 }
 
 export interface CreateTaskInput {
@@ -130,6 +131,7 @@ export interface CreateTaskInput {
   sort?: number;
   estimated_pomodoro?: number;
   ai_meta?: string | null;
+  target_date?: string;
 }
 
 export interface UpdateTaskInput {
@@ -148,6 +150,7 @@ export interface UpdateTaskInput {
   sort?: number;
   estimated_pomodoro?: number;
   ai_meta?: string | null;
+  target_date?: string;
 }
 
 export interface TaskListFilter {

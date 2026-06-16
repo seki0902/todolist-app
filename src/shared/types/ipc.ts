@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
     UPDATE: 'db:task:update',
     DELETE: 'db:task:delete',
     LIST: 'db:task:list',
+    CLONE_TASKS: 'db:task:cloneTasks',
   },
   CATEGORY: {
     CREATE: 'db:category:create',

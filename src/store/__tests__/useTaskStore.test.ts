@@ -23,6 +23,7 @@ function mockTask(overrides: Partial<TaskRow> = {}): TaskRow {
     ai_meta: null,
     created_at: Date.now(),
     updated_at: Date.now(),
+    target_date: '',
     ...overrides,
   };
 }
