@@ -11,7 +11,8 @@ import {
 } from '@dnd-kit/core';
 import { TitleBar } from './TitleBar';
 import { ManageDialog } from '../tasks/ManageDialog';
-import { DailyMigrationDialog } from '../tasks/DailyMigrationDialog';
+import { DailyReview } from '../tasks/DailyReview';
+import { toLocalDateStr } from '../../shared/utils/date';
 import { TaskForm } from '../tasks/TaskForm';
 import { useTaskStore } from '../../store/useTaskStore';
 import { useCategoryStore } from '../../store/useCategoryStore';
@@ -92,26 +93,17 @@ export const AppLayout: React.FC = () => {
       initCategorySync();
       initTagSync();
 
-      // Cross-day migration check — runs after tasks are loaded
-      const today = new Date().toDateString();
+      // Daily review trigger — checks target_date instead of due_time
+      const today = toLocalDateStr(new Date());
       const lastActiveDate = localStorage.getItem('focusflow-last-active-date');
-      if (lastActiveDate && lastActiveDate !== today) {
-        const yesterdayStart = new Date();
-        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-        yesterdayStart.setHours(0, 0, 0, 0);
-        const yesterdayEnd = new Date(yesterdayStart);
-        yesterdayEnd.setHours(23, 59, 59, 999);
 
+      if (lastActiveDate && lastActiveDate !== today) {
         const state = useTaskStore.getState();
-        // Catch all unfinished tasks: due yesterday OR updated yesterday (catches no-due-date tasks)
         const unfinished = state.tasks.filter(
           (t) =>
+            t.target_date === lastActiveDate &&
             t.progress < 100 &&
-            t.status !== 'cancelled' &&
-            (
-              (t.due_time && t.due_time >= yesterdayStart.getTime() && t.due_time <= yesterdayEnd.getTime()) ||
-              (t.updated_at >= yesterdayStart.getTime() && t.updated_at <= yesterdayEnd.getTime())
-            )
+            t.status !== 'cancelled'
         );
         if (unfinished.length > 0) {
           setYesterdayTasks(unfinished);
@@ -256,7 +248,20 @@ export const AppLayout: React.FC = () => {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden bg-background/30 relative">
-          {currentView === 'focus' ? (
+          {migrationOpen ? (
+            <DailyReview
+              yesterdayTasks={yesterdayTasks}
+              onSkip={() => {
+                setMigrationOpen(false);
+                localStorage.setItem('focusflow-last-active-date', toLocalDateStr(new Date()));
+              }}
+              onMigrate={async (taskIds) => {
+                setMigrationOpen(false);
+                await migrateTasksToToday(taskIds);
+                localStorage.setItem('focusflow-last-active-date', toLocalDateStr(new Date()));
+              }}
+            />
+          ) : currentView === 'focus' ? (
             <FocusView />
           ) : currentView === 'stats' ? (
             <StatsView tasks={tasks} />
@@ -290,19 +295,6 @@ export const AppLayout: React.FC = () => {
 
         <ManageDialog open={manageOpen} onClose={() => setManageOpen(false)} />
         <PomodoroWorkbench />
-        <DailyMigrationDialog
-          open={migrationOpen}
-          yesterdayTasks={yesterdayTasks}
-          onSkip={() => {
-            setMigrationOpen(false);
-            localStorage.setItem('focusflow-last-active-date', new Date().toDateString());
-          }}
-          onMigrate={async (taskIds) => {
-            setMigrationOpen(false);
-            await migrateTasksToToday(taskIds);
-            localStorage.setItem('focusflow-last-active-date', new Date().toDateString());
-          }}
-        />
         </div>
       </div>
     </DndContext>
