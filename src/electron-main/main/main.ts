@@ -60,6 +60,8 @@ if (!gotTheLock) { startupLog('Another instance running, quitting'); app.quit();
       registerTaskIpcHandlers(taskRepo); registerCategoryIpcHandlers(categoryRepo);
       registerTemplateIpcHandlers(templateRepo); registerTagIpcHandlers(tagRepo);
       registerStickyIpcHandlers(); registerBackupIpcHandlers(); registerAIIpcHandlers();
+      // Register window-control handlers once (NOT inside createWindow)
+      registerWindowIpcHandlers();
       startReminderService(); startRecurrenceService();
       startupLog('IPC handlers registered, about to createWindow()');
       createWindow();
@@ -96,6 +98,24 @@ if (!gotTheLock) { startupLog('Another instance running, quitting'); app.quit();
   });
 }
 
+function registerWindowIpcHandlers() {
+  ipcMain.handle('win:minimize', () => { mainWindow?.minimize(); });
+  ipcMain.handle('win:maximize', () => {
+    if (mainWindow?.isMaximized()) { mainWindow.unmaximize(); }
+    else { mainWindow?.maximize(); }
+  });
+  ipcMain.handle('win:close', () => { mainWindow?.close(); });
+  ipcMain.handle('win:isMaximized', () => mainWindow?.isMaximized() ?? false);
+  ipcMain.handle('notify:pomodoro', (_event, taskTitle: string) => {
+    new Notification({
+      title: '🍅 番茄钟完成',
+      body: taskTitle ? `"${taskTitle}" 专注时间结束！` : '专注时间结束！',
+      urgency: 'normal',
+    }).show();
+    return { success: true };
+  });
+}
+
 function createWindow() {
   // Resolve icon path (works in both dev and production)
   const iconPath = path.join(app.getAppPath(), 'build-resources', 'icon.png');
@@ -111,23 +131,6 @@ function createWindow() {
     title: 'FocusFlow Desktop',
     icon: appIcon,
     webPreferences: { preload: path.join(__dirname, '../preload/preload.js'), sandbox: true, contextIsolation: true, nodeIntegration: false },
-  });
-
-  // Window control IPC handlers
-  ipcMain.handle('win:minimize', () => { mainWindow?.minimize(); });
-  ipcMain.handle('win:maximize', () => {
-    if (mainWindow?.isMaximized()) { mainWindow.unmaximize(); }
-    else { mainWindow?.maximize(); }
-  });
-  ipcMain.handle('win:close', () => { mainWindow?.close(); });
-  ipcMain.handle('win:isMaximized', () => mainWindow?.isMaximized() ?? false);
-  ipcMain.handle('notify:pomodoro', (_event, taskTitle: string) => {
-    new Notification({
-      title: '🍅 番茄钟完成',
-      body: taskTitle ? `"${taskTitle}" 专注时间结束！` : '专注时间结束！',
-      urgency: 'normal',
-    }).show();
-    return { success: true };
   });
 
   mainWindow.on('maximize', () => { mainWindow?.webContents.send('win:maximizeChange', true); });

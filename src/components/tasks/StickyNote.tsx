@@ -239,7 +239,7 @@ export const StickyNote: React.FC = () => {
           <>
             {/* 进行中 section */}
             {inProgressTasks.length > 0 && (
-              <Section icon={<Play className="h-3 w-3 text-blue-400" />} title="进行中" count={inProgressTasks.length} textMuted={textSecondary} textDim={textDim}>
+              <Section icon={<Play className="h-3 w-3 text-blue-400" />} title="进行中" count={inProgressTasks.length} titleStyle={textSecondary} countStyle={textDim}>
                 {inProgressTasks.slice(0, 5).map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -248,7 +248,7 @@ export const StickyNote: React.FC = () => {
 
             {/* P1 section */}
             {p1Tasks.length > 0 && (
-              <Section icon={<Focus className="h-3 w-3 text-red-400" />} title="P1 紧急" count={p1Tasks.length} textMuted={textSecondary} textDim={textDim}>
+              <Section icon={<Focus className="h-3 w-3 text-red-400" />} title="P1 紧急" count={p1Tasks.length} titleStyle={textSecondary} countStyle={textDim}>
                 {p1Tasks.slice(0, 5).map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -257,7 +257,7 @@ export const StickyNote: React.FC = () => {
 
             {/* Today section */}
             {todayTasks.length > 0 && (
-              <Section icon={<ListTodo className="h-3 w-3 text-emerald-400" />} title="今日任务" count={todayTasks.length} textMuted={textSecondary} textDim={textDim}>
+              <Section icon={<ListTodo className="h-3 w-3 text-emerald-400" />} title="今日任务" count={todayTasks.length} titleStyle={textSecondary} countStyle={textDim}>
                 {todayTasks.slice(0, 5).map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -266,7 +266,7 @@ export const StickyNote: React.FC = () => {
 
             {/* Fallback: show all active tasks if no sections */}
             {inProgressTasks.length === 0 && p1Tasks.length === 0 && todayTasks.length === 0 && (
-              <Section icon={<ListTodo className={`h-3 w-3 ${textDim}`} />} title="待办" count={activeTasks.length} textMuted={textSecondary} textDim={textDim}>
+              <Section icon={<ListTodo className={`h-3 w-3 ${textDim}`} />} title="待办" count={activeTasks.length} titleStyle={textSecondary} countStyle={textDim}>
                 {activeTasks.slice(0, 5).map((t) => (
                   <TaskRow key={t.id} task={t} />
                 ))}
@@ -284,22 +284,22 @@ function Section({
   title,
   count,
   children,
-  textMuted,
-  textDim,
+  titleStyle,
+  countStyle,
 }: {
   icon: React.ReactNode;
   title: string;
   count: number;
   children: React.ReactNode;
-  textMuted: string;
-  textDim: string;
+  titleStyle: string;
+  countStyle: string;
 }) {
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5 px-1">
         {icon}
-        <span className={`text-[11px] font-medium ${textMuted}`}>{title}</span>
-        <span className={`text-[10px] ml-auto ${textDim}`}>{count}</span>
+        <span className={`text-[11px] font-medium ${titleStyle}`}>{title}</span>
+        <span className={`text-[10px] ml-auto ${countStyle}`}>{count}</span>
       </div>
       <div className="flex flex-col gap-0.5">{children}</div>
     </div>
