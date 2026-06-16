@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { TaskRow } from '../../shared/types/database';
+import { toLocalDateStr } from '../../shared/utils/date';
 
 interface DayStripProps {
   tasks: TaskRow[];
@@ -14,16 +15,10 @@ export const DayStrip: React.FC<DayStripProps> = ({ tasks }) => {
   const weekday = WEEKDAYS[today.getDay()];
 
   const todayTasks = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
+    const todayStr = toLocalDateStr(new Date());
     return tasks.filter(
       (t) =>
-        t.due_time &&
-        t.due_time >= todayStart.getTime() &&
-        t.due_time <= todayEnd.getTime() &&
+        t.target_date === todayStr &&
         t.progress < 100 &&
         t.status !== 'cancelled'
     );

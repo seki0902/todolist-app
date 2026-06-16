@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { TaskRow } from '../../shared/types/database';
 import { Priority } from '../../shared/types/database';
+import { toLocalDateStr } from '../../shared/utils/date';
 
 interface WeekStripProps {
   tasks: TaskRow[];
@@ -19,10 +20,7 @@ const DOT_COLORS: Record<Priority, string> = {
 
 function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): Priority[] {
   const priorities = tasks
-    .filter((t) => {
-      if (!t.due_time) return false;
-      return new Date(t.due_time).toISOString().slice(0, 10) === dateStr;
-    })
+    .filter((t) => t.target_date === dateStr)
     .map((t) => t.priority);
   return [...new Set(priorities)].slice(0, 4);
 }
@@ -35,7 +33,7 @@ export const WeekStrip: React.FC<WeekStripProps> = ({
   const [weekOffset, setWeekOffset] = React.useState(0);
 
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = toLocalDateStr(today);
 
   const weekStart = useMemo(() => {
     const now = new Date();
@@ -67,14 +65,14 @@ export const WeekStrip: React.FC<WeekStripProps> = ({
   const dotsMap = useMemo(() => {
     const map = new Map<string, Priority[]>();
     for (const day of days) {
-      const dateStr = day.toISOString().slice(0, 10);
+      const dateStr = toLocalDateStr(day);
       map.set(dateStr, getPrioritiesForDate(tasks, dateStr));
     }
     return map;
   }, [tasks, days]);
 
   const handleDateClick = (d: Date) => {
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = toLocalDateStr(d);
     if (dateStr === selectedDate) {
       onSelectDate(null);
     } else {
@@ -104,7 +102,7 @@ export const WeekStrip: React.FC<WeekStripProps> = ({
       {/* 7-day grid */}
       <div className="grid grid-cols-7 gap-1.5">
         {days.map((day) => {
-          const dateStr = day.toISOString().slice(0, 10);
+          const dateStr = toLocalDateStr(day);
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
           const dots = dotsMap.get(dateStr) || [];

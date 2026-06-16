@@ -159,12 +159,9 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
       return false;
     });
 
-    // Date filter (client-side — does not pollute store.tasks, so WeekStrip dots stay intact)
+    // Date filter (client-side — by target_date)
     if (selectedDate) {
-      result = result.filter((t) => {
-        if (!t.due_time) return false;
-        return new Date(t.due_time).toISOString().slice(0, 10) === selectedDate;
-      });
+      result = result.filter((t) => t.target_date === selectedDate);
     }
 
     return buildTree(result);
