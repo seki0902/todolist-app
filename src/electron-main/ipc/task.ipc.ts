@@ -109,4 +109,26 @@ export function registerTaskIpcHandlers(repo: TaskRepository): void {
       }
     }
   );
+
+  ipcMain.handle(
+    IPC_CHANNELS.TASK.CLONE_TASKS,
+    async (_event, taskIds: string[], todayDateStr: string): Promise<IPCResponse<TaskRow[]>> => {
+      try {
+        if (!Array.isArray(taskIds) || taskIds.length === 0) {
+          return { success: false, error: 'Invalid input: taskIds must be a non-empty array' };
+        }
+        if (!todayDateStr || typeof todayDateStr !== 'string') {
+          return { success: false, error: 'Invalid input: todayDateStr is required' };
+        }
+        const cloned = repo.cloneTasks(taskIds, todayDateStr);
+        for (const task of cloned) {
+          broadcastSync('insert', [task.id], task);
+        }
+        return { success: true, data: cloned };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        return { success: false, error: message };
+      }
+    }
+  );
 }
