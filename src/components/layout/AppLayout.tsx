@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Moon, Sun, Monitor, Settings, Calendar } from 'lucide-react';
+import { Moon, Sun, Monitor, Settings } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -18,20 +18,21 @@ import { useCategoryStore } from '../../store/useCategoryStore';
 import { useTagStore } from '../../store/useTagStore';
 import { useTheme } from '../../hooks/useTheme';
 import { CategorySidebar } from '../sidebar/CategorySidebar';
+import { MiniCalendar } from '../sidebar/MiniCalendar';
 import { TaskList } from '../tasks/TaskList';
 import { PomodoroWorkbench } from '../tasks/PomodoroWorkbench';
 import { PomodoroFloating } from '../tasks/PomodoroFloating';
 import { usePomodoroStore } from '../../store/usePomodoroStore';
 import { StatsView } from '../tasks/StatsView';
-import { CalendarView } from '../tasks/CalendarView';
 import { FocusCardSkeleton, StatCardSkeleton } from '../ui/Skeleton';
 import type { TaskRow, CreateTaskInput } from '../../shared/types/database';
 import { getPriorityLabel } from '../../shared/types/database';
 
-type View = 'focus' | 'tasks' | 'stats' | 'calendar';
+type View = 'focus' | 'tasks' | 'stats';
 
 export const AppLayout: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<View>('focus');
   const [manageOpen, setManageOpen] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -136,7 +137,6 @@ export const AppLayout: React.FC = () => {
         if (e.key === '1') { e.preventDefault(); setCurrentView('focus'); }
         if (e.key === '2') { e.preventDefault(); setCurrentView('tasks'); }
         if (e.key === '3') { e.preventDefault(); setCurrentView('stats'); }
-        if (e.key === '4') { e.preventDefault(); setCurrentView('calendar'); }
         if (e.key === 'f' || e.key === 'F') { e.preventDefault(); document.querySelector<HTMLInputElement>('input[placeholder*="搜索"]')?.focus(); }
       }
       if (e.key === 'Escape') {
@@ -216,17 +216,6 @@ export const AppLayout: React.FC = () => {
                 番茄钟
               </button>
               <button
-                onClick={() => setCurrentView('calendar')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  currentView === 'calendar'
-                    ? 'bg-accent text-accent-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                }`}
-              >
-                <Calendar className="h-4 w-4" />
-                日历
-              </button>
-              <button
                 onClick={() => setManageOpen(true)}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               >
@@ -241,6 +230,17 @@ export const AppLayout: React.FC = () => {
               onSelect={(id) => {
                 setSelectedCategory(id);
                 setCurrentView('tasks');
+              }}
+            />
+
+            <MiniCalendar
+              tasks={tasks}
+              selectedDate={selectedDate}
+              onSelectDate={(d) => setSelectedDate(d)}
+              onDateDoubleClick={(date) => {
+                setEditingTask(null);
+                setPrefillDate(date);
+                setFormOpen(true);
               }}
             />
 
@@ -269,23 +269,7 @@ export const AppLayout: React.FC = () => {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden bg-background/30 relative">
-          {currentView === 'calendar' ? (
-            <CalendarView
-              tasks={tasks}
-              onDateClick={(date) => {
-                setEditingTask(null);
-                setPrefillDate(date);
-                setFormOpen(true);
-              }}
-              onEventClick={(taskId) => {
-                const task = tasks.find((t) => t.id === taskId);
-                if (task) {
-                  setEditingTask(task);
-                  setFormOpen(true);
-                }
-              }}
-            />
-          ) : currentView === 'focus' ? (
+          {currentView === 'focus' ? (
             <FocusView />
           ) : currentView === 'stats' ? (
             <StatsView tasks={tasks} />
@@ -293,6 +277,7 @@ export const AppLayout: React.FC = () => {
             <TaskList
               categoryId={selectedCategory}
               dragOverId={dragOverId}
+              selectedDate={selectedDate}
             />
           )}
         </main>
