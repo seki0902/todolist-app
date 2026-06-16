@@ -141,6 +141,30 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 5,
+    up(db: Database) {
+      // Add target_date column
+      db.exec(`
+        ALTER TABLE tasks ADD COLUMN target_date TEXT DEFAULT '';
+      `);
+
+      // Backfill: use due_time date part, fallback to created_at date part
+      const selectStmt = db.prepare('SELECT id, due_time, created_at FROM tasks');
+      const updateStmt = db.prepare('UPDATE tasks SET target_date = ? WHERE id = ?');
+
+      while (selectStmt.step()) {
+        const row = selectStmt.getAsObject() as { id: string; due_time: number | null; created_at: number };
+        const ts = row.due_time ?? row.created_at;
+        const d = new Date(ts);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        updateStmt.run([dateStr, row.id]);
+      }
+
+      selectStmt.free();
+      updateStmt.free();
+    },
+  },
 ];
 
 export function getAppliedMigrations(db: Database): number[] {
