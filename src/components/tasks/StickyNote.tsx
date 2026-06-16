@@ -14,11 +14,14 @@ export const StickyNote: React.FC = () => {
 
   useEffect(() => {
     loadTasks();
-    // Load saved opacity
+    // Load saved opacity (both CSS alpha + window native opacity)
     const saved = localStorage.getItem('sticky-opacity');
     if (saved) {
       const val = parseFloat(saved);
-      if (!isNaN(val)) setOpacity(val);
+      if (!isNaN(val)) {
+        setOpacity(val);
+        try { (window as any).api?.sticky?.setOpacity?.(val); } catch {}
+      }
     }
     // Make body transparent for sticky mode
     document.body.classList.add('sticky-mode');
