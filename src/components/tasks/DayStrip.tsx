@@ -13,26 +13,26 @@ export const DayStrip: React.FC<DayStripProps> = ({ tasks }) => {
   const month = today.getMonth() + 1;
   const day = today.getDate();
   const weekday = WEEKDAYS[today.getDay()];
+  const todayStr = toLocalDateStr(new Date());
 
   const todayTasks = useMemo(() => {
-    const todayStr = toLocalDateStr(new Date());
     return tasks.filter(
       (t) =>
         t.target_date === todayStr &&
         t.progress < 100 &&
         t.status !== 'cancelled'
     );
-  }, [tasks]);
+  }, [tasks, todayStr]);
 
   const doneToday = useMemo(
     () =>
       tasks.filter((t) => {
-        if (t.progress < 100 && t.status !== 'done') return false;
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        return t.updated_at >= todayStart.getTime();
+        return (
+          t.target_date === todayStr &&
+          (t.progress >= 100 || t.status === 'done')
+        );
       }),
-    [tasks]
+    [tasks, todayStr]
   );
 
   const total = todayTasks.length + doneToday.length;

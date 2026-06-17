@@ -315,18 +315,16 @@ const FocusView: React.FC = () => {
     return () => container?.removeEventListener('scroll', handler);
   }, []);
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
+  const todayStr = toLocalDateStr(new Date());
 
   const todayTasks = tasks.filter(
-    (t) => t.due_time && t.due_time >= todayStart.getTime() && t.due_time <= todayEnd.getTime() && t.progress < 100 && t.status !== 'cancelled'
+    (t) => t.target_date === todayStr && t.progress < 100 && t.status !== 'cancelled'
   );
-  const inProgressTasks = tasks.filter((t) => t.progress > 0 && t.progress < 100 && t.status !== 'cancelled');
-  const urgentTasks = tasks.filter((t) => t.priority === 1 && t.progress < 100 && t.status !== 'cancelled');
-  const nextUpTasks = tasks.filter((t) => t.progress === 0 && t.status !== 'cancelled' && t.priority <= 2).slice(0, 5);
-  // Today-first priority: today urgent → today any → urgent → in_progress
+  const inProgressTasks = tasks.filter((t) => t.target_date === todayStr && t.progress > 0 && t.progress < 100 && t.status !== 'cancelled');
+  const urgentTasks = tasks.filter((t) => t.target_date === todayStr && t.priority === 1 && t.progress < 100 && t.status !== 'cancelled');
+  const nextUpTasks = tasks.filter((t) => t.target_date === todayStr && t.progress === 0 && t.status !== 'cancelled' && t.priority <= 2).slice(0, 5);
+
+  // Today-first priority: today urgent → today any → today urgent → today in_progress
   const todayUrgent = todayTasks.filter(t => t.priority === 1);
   const focusTask = todayUrgent[0] || todayTasks[0] || urgentTasks[0] || inProgressTasks[0];
 
@@ -468,9 +466,11 @@ const FocusView: React.FC = () => {
                   task.priority === 1 ? 'text-red-500' : task.priority === 2 ? 'text-orange-500' : 'text-blue-500'
                 }`}>{getPriorityLabel(task.priority)}</span>
                 <span className="text-sm text-foreground flex-1 truncate">{task.title}</span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(task.due_time!).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                {task.due_time && (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(task.due_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
               </div>
             ))}
           </div>

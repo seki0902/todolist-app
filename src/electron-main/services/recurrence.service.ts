@@ -53,10 +53,11 @@ function processRecurringTasks(): void {
     // Update the due_time to next occurrence
     // If task was done or paused, reset to todo for the next cycle
     const newStatus = (task.status === 'done' || task.status === 'paused') ? 'todo' : task.status;
+    const targetDate = `${nextDue.getFullYear()}-${String(nextDue.getMonth() + 1).padStart(2, '0')}-${String(nextDue.getDate()).padStart(2, '0')}`;
     const stmt = db.prepare(`
-      UPDATE tasks SET due_time = ?, status = ?, updated_at = ? WHERE id = ?
+      UPDATE tasks SET due_time = ?, target_date = ?, status = ?, updated_at = ? WHERE id = ?
     `);
-    stmt.run([nextDue.getTime(), newStatus, now, task.id]);
+    stmt.run([nextDue.getTime(), targetDate, newStatus, now, task.id]);
     stmt.free();
   }
 }

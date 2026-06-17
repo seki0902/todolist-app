@@ -15,14 +15,85 @@ const DOT_COLORS: Record<Priority, string> = {
   [Priority.P4]: 'bg-gray-400',
 };
 
-function getTasksForDate(tasks: TaskRow[], dateStr: string): TaskRow[] {
-  return tasks.filter((t) => t.target_date === dateStr);
+export function getTasksForDate(tasks: TaskRow[], dateStr: string): TaskRow[] {
+  const matched = tasks.filter((t) => t.target_date === dateStr);
+  const ids = new Set(matched.map((t) => t.id));
+
+  // Virtual expansion: weekly recurring tasks that match this date's day-of-week
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (y && m && d) {
+    const dayOfWeek = new Date(y, m - 1, d).getDay();
+    for (const task of tasks) {
+      if (ids.has(task.id)) continue;
+      if (task.recurrence_type !== 'weekly' || !task.recurrence_days) continue;
+      try {
+        const days: number[] = JSON.parse(task.recurrence_days);
+        if (days.includes(dayOfWeek)) {
+          matched.push(task);
+          ids.add(task.id);
+        }
+      } catch { /* skip malformed recurrence_days */ }
+    }
+  }
+
+  return matched;
 }
 
-function getPrioritiesForDate(tasks: TaskRow[], dateStr: string): Priority[] {
-  const priorities = getTasksForDate(tasks, dateStr).map((t) => t.priority);
-  return [...new Set(priorities)].slice(0, 4);
+export function buildDotsMap(
+  tasks: TaskRow[],
+  year: number,
+  month: number
+): Map<string, { priorities: Priority[]; count: number }> {
+  const map = new Map<string, { priorities: Priority[]; count: number }>();
+
+  const ensure = (date: string) => {
+    let entry = map.get(date);
+    if (!entry) {
+      entry = { priorities: [], count: 0 };
+      map.set(date, entry);
+    }
+    return entry;
+  };
+
+  const addTask = (task: TaskRow, date: string) => {
+    const entry = ensure(date);
+    if (!entry.priorities.includes(task.priority)) {
+      entry.priorities.push(task.priority);
+    }
+    entry.count++;
+  };
+
+  // Pass 1: real instances (target_date)
+  for (const task of tasks) {
+    if (!task.target_date) continue;
+    const [y, m] = task.target_date.split('-').map(Number);
+    if (y !== year || m !== month + 1) continue;
+    addTask(task, task.target_date);
+  }
+
+  // Pass 2: virtual expansion for weekly recurring tasks
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (const task of tasks) {
+    if (task.recurrence_type !== 'weekly' || !task.recurrence_days) continue;
+    let days: number[];
+    try {
+      days = JSON.parse(task.recurrence_days);
+    } catch { continue; }
+    if (!days.length) continue;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      if (!days.includes(date.getDay())) continue;
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      // Don't double-count the real instance
+      if (task.target_date === dateStr) continue;
+      addTask(task, dateStr);
+    }
+  }
+
+  return map;
 }
+
 
 export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
   const today = new Date();
@@ -40,19 +111,10 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
   for (let i = 0; i < adjustedFirstDay; i++) days.push(null);
   for (let d = 1; d <= daysInMonth; d++) days.push(d);
 
-  const dotsMap = useMemo(() => {
-    const map = new Map<string, Priority[]>();
-    for (const task of tasks) {
-      if (!task.target_date) continue;
-      const [y, m] = task.target_date.split('-').map(Number);
-      if (y === year && m === month + 1) {
-        if (!map.has(task.target_date)) {
-          map.set(task.target_date, getPrioritiesForDate(tasks, task.target_date));
-        }
-      }
-    }
-    return map;
-  }, [tasks, year, month]);
+  const dotsMap = useMemo(
+    () => buildDotsMap(tasks, year, month),
+    [tasks, year, month]
+  );
 
   const selectedTasks = useMemo(() => {
     if (!selectedDate) return [];
@@ -100,7 +162,9 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
-          const dots = dotsMap.get(dateStr) || [];
+          const cell = dotsMap.get(dateStr);
+          const dots = cell?.priorities || [];
+          const taskCount = cell?.count || 0;
 
           return (
             <button
@@ -126,9 +190,9 @@ export const MonthGrid: React.FC<MonthGridProps> = ({ tasks }) => {
                 </div>
               )}
               {/* Task count */}
-              {dots.length > 0 && (
+              {taskCount > 0 && (
                 <span className="text-[10px] text-muted-foreground mt-1">
-                  {dots.length > 3 ? `${dots.length}` : ''}
+                  {taskCount}
                 </span>
               )}
             </button>

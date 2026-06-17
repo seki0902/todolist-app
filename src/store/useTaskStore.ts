@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TaskRow, TaskListFilter, CreateTaskInput, UpdateTaskInput } from '../shared/types/database';
 import { DBSyncEvent } from '../shared/types/ipc';
+import { toLocalDateStr } from '../shared/utils/date';
 
 interface TaskState {
   tasks: TaskRow[];
@@ -136,12 +137,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   migrateTasksToToday: async (taskIds: string[]) => {
+    const todayStr = toLocalDateStr(new Date());
     const today = new Date();
     today.setHours(23, 59, 0, 0);
     const todayDue = today.getTime();
 
-    const results = await Promise.allSettled(
-      taskIds.map((id) => window.api.db.updateTask(id, { due_time: todayDue }))
+    await Promise.allSettled(
+      taskIds.map((id) =>
+        window.api.db.updateTask(id, { target_date: todayStr, due_time: todayDue })
+      )
     );
 
     // Reload from server to get updated data
@@ -152,8 +156,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   cloneTasksToToday: async (taskIds: string[]) => {
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dateStr = toLocalDateStr(new Date());
     const response = await window.api.db.cloneTasks(taskIds, dateStr);
     // Note: IPC handler broadcasts sync 'insert' for each clone,
     // so handleSync will add them to state automatically — no manual set needed.

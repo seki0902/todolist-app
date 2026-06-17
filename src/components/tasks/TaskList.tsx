@@ -17,6 +17,7 @@ import { TaskForm } from './TaskForm';
 import { Button } from '../ui/Button';
 import type { TaskRow, CreateTaskInput, UpdateTaskInput } from '../../shared/types/database';
 import { TaskStatus, Priority, PRIORITY_ORDER } from '../../shared/types/database';
+import { toLocalDateStr } from '../../shared/utils/date';
 
 interface TaskListProps {
   categoryId: string | null;
@@ -107,7 +108,27 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
   const [editingTask, setEditingTask] = useState<TaskRow | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
+    try {
+      const raw = sessionStorage.getItem('focusflow-selected-date');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved.date === null) return null;
+        if (saved.date && saved.day === toLocalDateStr(new Date())) return saved.date;
+      }
+    } catch {}
+    return toLocalDateStr(new Date());
+  });
+
+  // Persist date filter choice across view switches within the same day
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('focusflow-selected-date', JSON.stringify({
+        date: selectedDate,
+        day: toLocalDateStr(new Date()),
+      }));
+    } catch {}
+  }, [selectedDate]);
   // AI confirmation queue
   const [confirmQueue, setConfirmQueue] = useState<ParseResult[]>([]);
   const [confirmIndex, setConfirmIndex] = useState(0);
@@ -148,20 +169,20 @@ export const TaskList: React.FC<TaskListProps> = ({ categoryId, dragOverId }) =>
       result = result.filter((t) => t.status !== TaskStatus.CANCELLED);
     }
 
-    // Hide completed tasks that were done before today
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    result = result.filter((t) => {
-      if (t.status !== TaskStatus.DONE) return true;
-      // Only keep done tasks completed today, or with due_time today/future
-      if (t.updated_at >= todayStart.getTime()) return true;
-      if (t.due_time && t.due_time >= todayStart.getTime()) return true;
-      return false;
-    });
-
     // Date filter (client-side — by target_date)
     if (selectedDate) {
       result = result.filter((t) => t.target_date === selectedDate);
+    } else {
+      // Hide completed tasks that were done before today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      result = result.filter((t) => {
+        if (t.status !== TaskStatus.DONE) return true;
+        // Only keep done tasks completed today, or with due_time today/future
+        if (t.updated_at >= todayStart.getTime()) return true;
+        if (t.due_time && t.due_time >= todayStart.getTime()) return true;
+        return false;
+      });
     }
 
     return buildTree(result);

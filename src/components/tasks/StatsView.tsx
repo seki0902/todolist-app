@@ -4,6 +4,7 @@ import type { TaskRow } from '../../shared/types/database';
 import { Priority, getPriorityLabel } from '../../shared/types/database';
 import { useCategoryStore } from '../../store/useCategoryStore';
 import { usePomodoroStore } from '../../store/usePomodoroStore';
+import { toLocalDateStr } from '../../shared/utils/date';
 import { MonthGrid } from './MonthGrid';
 
 interface StatsViewProps {
@@ -19,7 +20,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
   const pomodoroHistory = usePomodoroStore((s) => s.history);
 
   const stats = useMemo(() => {
-    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const todayStr = toLocalDateStr(new Date());
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
@@ -28,7 +29,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ tasks }) => {
     monthStart.setHours(0, 0, 0, 0);
 
     const done = tasks.filter((t) => t.progress >= 100 || t.status === 'done');
-    const todayDone = done.filter((t) => t.updated_at >= todayStart);
+    const todayDone = done.filter((t) => t.target_date === todayStr);
     const weekDone = done.filter((t) => t.updated_at >= weekStart.getTime());
     const monthDone = done.filter((t) => t.updated_at >= monthStart.getTime());
 

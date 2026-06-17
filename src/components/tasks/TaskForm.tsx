@@ -91,7 +91,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         setReminderOffset(0);
       }
     }
-  }, [open, task, aiPrefill]);
+  }, [open, task, aiPrefill, defaultCategoryId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,13 +110,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       recurrence_type: recurrenceType || null,
       recurrence_days: recurrenceDays.length > 0 ? JSON.stringify(recurrenceDays) : null,
       estimated_pomodoro: pomodoro,
-      target_date: toLocalDateStr(new Date()),
     };
 
     if (isEdit && task) {
       onSave({ id: task.id, input: baseInput } as { id: string; input: UpdateTaskInput });
     } else {
-      onSave(baseInput as CreateTaskInput);
+      onSave({ ...baseInput, target_date: toLocalDateStr(new Date()) } as CreateTaskInput);
     }
   };
 
